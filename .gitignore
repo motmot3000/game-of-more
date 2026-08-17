@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+*.log
+
+# Sorties d'outils et captures de travail : régénérables depuis l'app.
+.playwright-mcp/
+preview-*.png
+step1-*.png
+
+# État du jeu : les données vivent sur le serveur, jamais dans le dépôt.
+server/data/
+
+# Verrous LibreOffice sur les .docx
+.~lock.*#
