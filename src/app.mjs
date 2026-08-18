@@ -40,13 +40,11 @@ import {
 const app = document.querySelector("#app");
 const toasts = document.querySelector("#toasts");
 const modalRoot = document.querySelector("#modal-root");
-// The backend only runs on cagipi. The app itself may be mirrored to other
-// domains (e.g. a static git-pull deploy), so the API is always addressed
-// absolutely rather than assumed to share the page's origin.
-const API_BASE = "https://cagipi.taild0ddf5.ts.net/game-of-more/";
-
+// The backend only runs on cagipi. Other domains that mirror the app (e.g. a
+// static git-pull deploy) reverse-proxy /api/ back to it server-side, so the
+// browser always sees it as same-origin — see BACKEND.md.
 function apiUrl(path) {
-  return new URL(`api/${path}`, API_BASE).toString();
+  return new URL(`api/${path}`, document.baseURI).toString();
 }
 
 let state = loadState();

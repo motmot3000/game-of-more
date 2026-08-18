@@ -63,19 +63,6 @@ function pruneBackups() {
   }
 }
 
-// The frontend may be mirrored to another domain (e.g. a static git-pull
-// deploy) while this backend stays the single source of truth, so cross-origin
-// calls from that known domain need to be allowed explicitly.
-const ALLOWED_ORIGINS = new Set(["https://game-of-more.lecagibi.ch"]);
-
-function applyCors(req, res) {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-  }
-}
-
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
@@ -137,17 +124,6 @@ function serveStatic(req, res, pathname) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const { pathname } = url;
-
-  applyCors(req, res);
-
-  if (pathname === "/api/state" && req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
-    });
-    res.end();
-    return;
-  }
 
   if (pathname === "/api/health") {
     sendJson(res, 200, { ok: true });
