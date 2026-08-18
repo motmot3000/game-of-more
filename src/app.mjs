@@ -41,8 +41,13 @@ import {
 const app = document.querySelector("#app");
 const toasts = document.querySelector("#toasts");
 const modalRoot = document.querySelector("#modal-root");
+// The backend only runs on cagipi. The app itself may be mirrored to other
+// domains (e.g. a static git-pull deploy), so the API is always addressed
+// absolutely rather than assumed to share the page's origin.
+const API_BASE = "https://cagipi.taild0ddf5.ts.net/game-of-more/";
+
 function apiUrl(path) {
-  return new URL(`api/${path}`, document.baseURI).toString();
+  return new URL(`api/${path}`, API_BASE).toString();
 }
 
 let state = loadState();
@@ -95,22 +100,25 @@ function render() {
   app.innerHTML = `
     <main class="shell">
       <section class="stage" data-density="${classroom.pupils.length > 24 ? "list" : "grid"}">
-        <header class="stage-header">
-          <div class="brand">
-            ${renderEmblem()}
-            <div class="brand-text">
-              <p class="eyebrow">The hero classroom quest</p>
-              <span class="brand-title">GAME <span class="accent">OF MORE</span></span>
-            </div>
+        <div class="hero-banner">
+          <img class="hero-banner-img" src="./assets/banner.png" alt="Game of More — adventure banner" />
+          <div class="hero-banner-copy">
+            <p class="eyebrow hero-eyebrow">The hero classroom quest</p>
+            <h1 class="hero-title">GAME <span class="accent">OF MORE</span></h1>
           </div>
+          <img class="hero-emblem" src="./assets/emblem.svg" alt="Game of More crest" />
+        </div>
+        <header class="stage-header stage-header--hud">
           <nav class="header-nav">
             <div class="class-tabs" role="tablist" aria-label="Classes">
               ${state.classes.map(renderClassTab).join("")}
             </div>
-            <button class="rules-button" data-action="show-rules" type="button">Rules</button>
           </nav>
+          <div class="header-nav">
+            ${renderStats(classroom)}
+            <button class="rules-button" data-action="show-rules" type="button">Rules</button>
+          </div>
         </header>
-        ${renderStats(classroom)}
         ${renderStage(classroom)}
       </section>
       <aside class="control-panel" aria-label="Teacher console">
