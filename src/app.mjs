@@ -32,7 +32,6 @@ import {
 import {
   renderHero,
   renderItemArt,
-  renderEmblem,
   renderCoinIcon,
   renderHeartIcon,
   renderMascot
@@ -106,7 +105,6 @@ function render() {
             <p class="eyebrow hero-eyebrow">The hero classroom quest</p>
             <h1 class="hero-title">GAME <span class="accent">OF MORE</span></h1>
           </div>
-          <img class="hero-emblem" src="./assets/emblem.svg" alt="Game of More crest" />
         </div>
         <header class="stage-header stage-header--hud">
           <nav class="header-nav">
@@ -145,7 +143,6 @@ function renderRulesPage() {
     <main class="rules-shell">
       <header class="stage-header">
         <div class="brand">
-          ${renderEmblem()}
           <div class="brand-text">
             <p class="eyebrow">The hero classroom quest</p>
             <span class="brand-title">GAME <span class="accent">OF MORE</span></span>
@@ -181,6 +178,7 @@ function renderRulesPage() {
           <ul class="rules-list">
             <li>Be nice.</li>
             <li>Work well.</li>
+            <li>Good grades.</li>
           </ul>
         </section>
       </div>
@@ -249,9 +247,10 @@ function renderAvatarCard(pupil) {
         <strong>${escapeHtml(pupil.name)}</strong>
         <span class="level-badge">${state.selectMode && selected ? "✓" : `LVL ${pupil.level}`}</span>
       </div>
-      <div class="avatar-wrap">
+      <div class="avatar-wrap" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">
         ${renderHero(pupil)}
         ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
+        <span class="zoom-hint" aria-hidden="true">⤢</span>
       </div>
       <p class="title title-${pupil.title}">${escapeHtml(title)}</p>
       <div class="money-badge" aria-label="${pupil.money} money"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
@@ -271,7 +270,7 @@ function renderListRow(pupil) {
   const selected = isCardSelected(pupil.id);
   return `
     <article class="list-row ${selected ? "selected" : ""} ${isEliminated(pupil) ? "eliminated" : ""}" data-action="select-pupil" data-pupil-id="${pupil.id}">
-      <div class="mini-avatar">${renderHero(pupil)}</div>
+      <div class="mini-avatar" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">${renderHero(pupil)}</div>
       <strong>${escapeHtml(pupil.name)}</strong>
       <span>${state.selectMode && selected ? "✓" : `LVL ${pupil.level}`}</span>
       <span>${pupil.hp}/${pupil.maxHp} HP</span>
@@ -343,9 +342,13 @@ function renderControlPanel(classroom, selectedPupil) {
         ${renderXpButton(500, "Bonus")}
       </div>
       <form class="custom-xp" data-action="custom-xp">
-        <input name="amount" type="number" min="1" step="10" value="100" aria-label="Custom XP" />
+        <input name="amount" type="number" min="1" step="1" value="100" aria-label="Custom XP" />
         <button type="submit">Give XP</button>
         <button type="button" data-action="xp-all">Give all</button>
+      </form>
+      <form class="money-all" data-action="money-all">
+        <input name="amount" type="number" min="1" step="1" value="10" aria-label="Money amount" />
+        <button type="submit">Add money to all</button>
       </form>
       <button class="heal-all" type="button" data-action="heal-all">Heal class HP</button>
     </section>
@@ -386,8 +389,7 @@ function renderBulkPanel(classroom) {
 
       <div class="money-actions">
         <span>Teacher money</span>
-        <button type="button" data-action="bulk-money" data-amount="5" ${disabled}>+5</button>
-        <button type="button" data-action="bulk-money" data-amount="10" ${disabled}>+10</button>
+        ${renderMoneyButtons("bulk-money", disabled)}
       </div>
     </section>
   `;
@@ -401,12 +403,18 @@ function renderXpButton(amount, reason) {
   `;
 }
 
+function renderMoneyButtons(action, disabled = "") {
+  return [10, 20, 30, 40, 50, 60].map((amount) => (
+    `<button type="button" data-action="${action}" data-amount="${amount}" ${disabled}>+${amount}</button>`
+  )).join("");
+}
+
 function renderSelectedPupil(pupil) {
   const progress = xpProgress(pupil);
   return `
     <section class="selected-panel">
       <div class="selected-top">
-        <div class="mini-avatar">${renderHero(pupil)}</div>
+        <div class="mini-avatar" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">${renderHero(pupil)}</div>
         <div>
           <h3>${escapeHtml(pupil.name)}</h3>
           <p class="title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))} · LVL ${pupil.level}</p>
@@ -433,8 +441,7 @@ function renderSelectedPupil(pupil) {
 
       <div class="money-actions">
         <span>Teacher money</span>
-        <button type="button" data-action="award-money" data-amount="5">+5</button>
-        <button type="button" data-action="award-money" data-amount="10">+10</button>
+        ${renderMoneyButtons("award-money")}
       </div>
 
       ${renderRewards(pupil)}
@@ -551,6 +558,65 @@ function renderItemModal(item, pupil) {
   `;
 }
 
+/* Vue « en grand » d'un élève : pensée pour être projetée au tableau, donc
+   grande figure et chiffres lisibles du fond de la classe. Lecture seule —
+   les actions restent dans la console, on ne modifie rien par mégarde en
+   montrant un héros à toute la classe. */
+function renderPupilModal(pupil) {
+  const progress = xpProgress(pupil);
+  const next = getNextReward(pupil.level);
+  const gear = [
+    ["Outfit", getItemName("outfit", pupil.skin)],
+    ["Hat", getItemName("hat", pupil.hat)],
+    ["Item", getItemName("weapon", pupil.weapon)],
+    ["Hair", getItemName("hair", pupil.hair)],
+    ["Face", getItemName("face", pupil.face)]
+  ];
+
+  return `
+    <div class="modal-backdrop">
+      <div class="modal pupil-modal ${isEliminated(pupil) ? "eliminated" : ""}" role="dialog" aria-modal="true" aria-label="${escapeHtml(pupil.name)}">
+        <button class="modal-close" type="button" data-action="close-preview" aria-label="Close">×</button>
+        <div class="pupil-modal-stage">
+          ${renderHero(pupil)}
+          ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
+        </div>
+        <div class="pupil-modal-info">
+          <div class="pupil-modal-head">
+            <h3>${escapeHtml(pupil.name)}</h3>
+            <span class="level-badge big">LVL ${pupil.level}</span>
+          </div>
+          <p class="title title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))}</p>
+
+          <div class="hp-row big" aria-label="${pupil.hp} hit points out of ${pupil.maxHp}">${renderHpHearts(pupil)}</div>
+
+          <div class="xp-track large"><span style="width:${progress.percent}%"></span></div>
+          <div class="xp-label">${progress.current}/${progress.needed} XP</div>
+
+          <div class="money-badge big"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
+
+          <dl class="gear-list">
+            ${gear.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
+          </dl>
+
+          <p class="muted next-reward">${next
+            ? `Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}`
+            : "Max rewards unlocked!"}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openPupilView(pupilId) {
+  const pupil = getPupilById(state, pupilId);
+  if (!pupil) return;
+  modalRoot.innerHTML = renderPupilModal(pupil);
+  modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", closePreview);
+  modalRoot.querySelector(".modal")?.addEventListener("click", (event) => event.stopPropagation());
+  modalRoot.querySelector("[data-action='close-preview']")?.addEventListener("click", closePreview);
+}
+
 function openPreview(itemId) {
   const pupil = state.selectedPupilId ? getPupilById(state, state.selectedPupilId) : null;
   const item = getShopItem(itemId);
@@ -618,6 +684,20 @@ function bindEvents() {
     });
   });
 
+  app.querySelectorAll("[data-action='zoom-pupil']").forEach((zone) => {
+    const open = () => {
+      if (state.selectMode) return;   // en sélection multiple, le clic coche
+      openPupilView(zone.dataset.pupilId);
+    };
+    zone.addEventListener("click", open);
+    zone.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      commit({ ...state, selectedPupilId: zone.dataset.pupilId }, { record: false });
+      openPupilView(zone.dataset.pupilId);
+    });
+  });
+
   app.querySelector("[data-action='toggle-select-mode']")?.addEventListener("click", () => {
     commit(setSelectMode(state, !state.selectMode), { record: false });
   });
@@ -680,6 +760,13 @@ function bindEvents() {
     const classroom = getCurrentClass(state);
     const input = app.querySelector(".custom-xp input[name='amount']");
     commit(awardXp(state, classroom.pupils.map((pupil) => pupil.id), Number(input?.value || 0), "Class XP"));
+  });
+
+  app.querySelector("[data-action='money-all']")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const classroom = getCurrentClass(state);
+    const amount = Number(new FormData(event.currentTarget).get("amount"));
+    commit(awardMoney(state, classroom.pupils.map((pupil) => pupil.id), amount, "Class money"));
   });
 
   app.querySelector("[data-action='heal-all']")?.addEventListener("click", () => {
