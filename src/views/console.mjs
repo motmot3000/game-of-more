@@ -94,7 +94,7 @@ function renderAward(ui, targets) {
       <form class="stepper-row stepper-xp" data-action="custom-xp">
         <div class="stepper">
           <button class="stepper-btn" type="button" data-action="step" data-field="xp-amount" data-step="-50" aria-label="Lower XP amount">${icon("minus")}</button>
-          <input id="xp-amount" name="amount" type="number" min="1" step="10" value="${ui.xpAmount}" aria-label="Custom XP amount" />
+          <input id="xp-amount" name="amount" type="number" min="1" step="1" value="${ui.xpAmount}" aria-label="Custom XP amount" />
           <button class="stepper-btn" type="button" data-action="step" data-field="xp-amount" data-step="50" aria-label="Raise XP amount">${icon("plus")}</button>
         </div>
         <button class="btn btn-primary" type="submit" ${off}>Give XP</button>
@@ -114,7 +114,7 @@ function renderAward(ui, targets) {
         `).join("")}
         <div class="stepper">
           <button class="stepper-btn" type="button" data-action="step" data-field="coin-amount" data-step="-10" aria-label="Lower coin amount">${icon("minus")}</button>
-          <input id="coin-amount" name="amount" type="number" min="1" step="5" value="${ui.coinAmount}" aria-label="Custom coin amount" />
+          <input id="coin-amount" name="amount" type="number" min="1" step="1" value="${ui.coinAmount}" aria-label="Custom coin amount" />
           <button class="stepper-btn" type="button" data-action="step" data-field="coin-amount" data-step="10" aria-label="Raise coin amount">${icon("plus")}</button>
         </div>
         <button class="btn btn-primary" type="submit" ${off}>Give coins</button>

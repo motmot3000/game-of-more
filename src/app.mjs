@@ -681,8 +681,10 @@ function toast(message, kind = "info", { undo: withUndo = false } = {}) {
   }
 
   // Trois messages suffisent : au-delà, la pile masque la console au lieu
-  // de l'informer.
-  while (toastRoot.children.length >= 3) dismiss(toastRoot.firstElementChild);
+  // de l'informer. Le retrait est immédiat, pas fondu : `dismiss` ne
+  // détache le nœud qu'après son animation, et la boucle tournerait sans
+  // fin en attendant une place qui ne se libère pas.
+  while (toastRoot.children.length >= 3) toastRoot.firstElementChild.remove();
 
   toastRoot.appendChild(node);
   requestAnimationFrame(() => node.classList.add("is-in"));

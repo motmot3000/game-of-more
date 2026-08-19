@@ -1616,6 +1616,23 @@ select {
   color: var(--ink-muted);
 }
 
+/* Le retour vit en haut de page, pas au fond de la fiche : quitter son
+   héros ne doit pas demander de faire défiler la boutique. */
+.student-back {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.student-back .panel-note {
+  min-width: 0;
+}
+
+.student-back strong {
+  color: var(--ink);
+}
+
 .locker {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
