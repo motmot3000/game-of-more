@@ -44,7 +44,7 @@ export const TITLES = [
 
 export const HATS = [
   { id: "no-hat", name: "None", minLevel: 1, price: 0 },
-  { id: "explorer-cap", name: "Cap", minLevel: 1, price: 15 },
+  { id: "explorer-cap", name: "Goggles", minLevel: 1, price: 15 },
   { id: "wizard-hat", name: "Wizard", minLevel: 3, price: 30 },
   { id: "gold-crown", name: "Crown", minLevel: 5, price: 55 }
 ];

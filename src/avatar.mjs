@@ -1,6 +1,6 @@
 /* ============================================================
    Game of More — héros d'aventure
-   Figures vectorielles, ~6.5 têtes, palette sourde.
+   Figures vectorielles, ~5.5 têtes, palette sourde.
 
    Principe : la tenue de départ est SIMPLE (tunique, ceinture,
    bottes). Ce sont les objets achetés qui ajoutent la cape, le
@@ -59,12 +59,12 @@ const WOOD    = { base: "#7A5A38", dark: "#573F26", lite: "#96754C", line: "#2E2
    Chaque tenue n'est qu'un jeu d'options : la silhouette ne change jamais,
    seule la quantité d'équipement monte. */
 const OUTFITS = {
-  starter:        { cloth: "lin",     cape: false,   mail: false, emblem: false, greaves: false },
+  starter:        { cloth: "lin",     cape: false,   mail: false, emblem: false, greaves: false, pathfinder: true },
   "vocab-ranger": { cloth: "sinople",  mantle: true,  mail: false, emblem: false, greaves: false },
   "grammar-mage": { cloth: "pourpre",  cape: true,    mail: false, emblem: true,  greaves: false },
   "story-keeper": { cloth: "ecarlate", cape: true,    mail: true,  emblem: true,  greaves: true  }
 };
-const HEADGEAR = { "no-hat": "none", "explorer-cap": "hood", "wizard-hat": "wizard", "gold-crown": "crown" };
+const HEADGEAR = { "no-hat": "none", "explorer-cap": "goggles", "wizard-hat": "wizard", "gold-crown": "crown" };
 const HANDGEAR = { "no-weapon": "none", "pencil-sword": "sword", "word-wand": "staff", "star-shield": "shield" };
 const HAIRCUTS = { short: "court", long: "longue", curly: "boucle", spiky: "epis" };
 
@@ -101,6 +101,13 @@ function safeId(value) {
   return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "") || `h${++artSeq}`;
 }
 
+/* Une inversion gauche/droite suffit à casser l'effet « armée de clones »
+   sans déplacer les points d'ancrage des accessoires. Elle reste stable pour
+   un même élève, y compris après rechargement d'une sauvegarde. */
+function mirrorFor(value) {
+  return [...String(value || "")].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2 === 1;
+}
+
 /* ---------- repères du visage ----------
    Tout couvre-chef doit s'arrêter AU-DESSUS du sourcil, sinon il mange
    le regard. Crâne 24 · racine 36 · sourcil 45 · œil 52 · nez 62 ·
@@ -134,11 +141,12 @@ function heroShapes(opt) {
     S.push(fold("M44,300 C74,312 126,312 156,300", CLOAK.lite, 1.4, 0.35));
   }
 
-  /* --- bras arrière */
-  S.push(p("M45,122 L66,109 L64,199 C64,206 58,211 54.5,211 C51,211 46,206 46,199 Z", sleeve));
-  S.push({ tag: "rect", a: { x: 45, y: 180, width: 20, height: 15, rx: 4 }, fill: LEATHER.dark });
-  S.push(fold("M49,187 L61,186", LEATHER.line, 1.3, 0.55));
-  S.push(c(55, 208, 9.5, T.dark));
+  /* --- bras arrière, légèrement plié : la main près de la hanche donne une
+         attitude sûre sans transformer le héros en adulte martial. */
+  S.push(p("M67,108 C56,111 48,119 44,132 L52,157 L66,149 L72,121 Z", sleeve));
+  S.push(p("M48,150 L64,144 L70,158 L54,165 Z", LEATHER.dark));
+  S.push(fold("M52,153 L63,149", LEATHER.line, 1.4, 0.55));
+  S.push(p("M55,162 C60,160 66,164 70,170 L76,178 C78,182 75,187 70,188 C66,189 63,185 62,181 L56,174 C52,170 51,165 55,162 Z", T.dark));
 
   /* --- chausses. Sans grèves la botte s'arrête au mollet : une tige qui
          monte au genou lit comme une cuissarde, pas comme un aventurier. */
@@ -179,8 +187,8 @@ function heroShapes(opt) {
   /* --- haubert de mailles, sous la tunique */
   if (opt.mail) S.push(p("M64,111 C70,96 82,90 100,90 C118,90 130,96 136,111 L130,192 L70,192 Z", mailFill));
 
-  /* --- tunique */
-  S.push(p("M66,113 C71,98 82,92 100,92 C118,92 129,98 134,113 L130,182 L70,182 Z", C.base));
+  /* --- tunique : épaules souples, taille marquée, ourlet moins rectangulaire. */
+  S.push(p("M66,113 C71,98 83,92 100,92 C117,92 129,98 134,113 L130,178 C121,184 111,187 100,187 C89,187 79,184 70,178 Z", C.base));
   /* Creux de l'aisselle : c'est cette ombre qui fait lire le bras DEVANT le
      torse plutôt que collé à côté. */
   S.push(ao("M66,114 C74,108 80,117 82,129 L68,133 Z", 0.24));
@@ -188,6 +196,21 @@ function heroShapes(opt) {
   S.push(fold("M84,112 C82,138 82,160 84,178", C.line, 1.3, 0.45));
   S.push(fold("M116,112 C118,138 118,160 116,178", C.line, 1.3, 0.45));
   S.push(p("M89,96 L100,116 L111,96 Z", opt.mail ? mailFill : C.dark));
+
+  /* Sangle d'expédition commune à toutes les tenues. Elle donne une histoire
+     au niveau 1, tout en restant assez simple pour la lecture sur une carte. */
+  S.push(p("M76,104 L84,99 L133,183 L124,189 Z", LEATHER.base));
+  S.push(fold("M82,107 L126,181", LEATHER.lite, 1.3, 0.5));
+
+  if (opt.pathfinder) {
+    /* Foulard court + boussole : deux masses simples qui identifient le rôle
+       sans concurrencer les futurs objets achetés. */
+    S.push(p("M78,99 C89,104 111,104 122,99 L118,115 L105,109 L100,124 L94,109 L82,115 Z", CLOTHS.sinople.base));
+    S.push(fold("M84,105 C94,109 106,109 116,105", CLOTHS.sinople.lite, 1.5, 0.55));
+    S.push(c(121, 162, 8.5, GOLD.base));
+    S.push(c(121, 162, 5.6, "#D8E8DA", { sw: 1.2 }));
+    S.push(p("M121,157 L123,162 L121,167 L119,162 Z", CLOTHS.sinople.dark, { sw: 1 }));
+  }
 
   /* --- armoiries : étoile à huit rais, seulement sur les tenues hautes */
   if (opt.emblem) {
@@ -209,8 +232,9 @@ function heroShapes(opt) {
     S.push(c(122, 199, 2.6, GOLD.dark, { sw: 1.2 }));
   }
 
-  S.push(p("M110,201 L131,197 L134,222 L114,227 Z", LEATHER.base));
-  S.push(p("M109,199 L132,195 L133,205 L111,209 Z", LEATHER.dark));
+  S.push(p("M112,197 L134,193 L138,220 L116,226 Z", LEATHER.base));
+  S.push(p("M111,195 L135,191 L136,202 L113,207 Z", LEATHER.dark));
+  S.push(c(126, 211, 2.4, GOLD.dark, { sw: 1 }));
 
   /* --- pans de la tunique, fendus au centre pour laisser lire les jambes */
   S.push(p("M70,190 C62,224 58,250 60,274 C74,278 88,279 98,278 L99,190 Z", C.dark));
@@ -241,19 +265,23 @@ function heroShapes(opt) {
 
   /* --- col, cou, tête */
   S.push(p("M88,82 C88,75 112,75 112,82 L122,108 L78,108 Z", opt.mail ? mailFill : C.dark));
-  S.push(p("M91,66 L109,66 L109,90 L91,90 Z", T.dark));
-  S.push(ao("M88,76 C94,84 106,84 112,76 L112,86 L88,86 Z", 0.22));
+  S.push(p("M91,68 L109,68 L109,92 L91,92 Z", T.dark));
+  S.push(ao("M88,78 C94,86 106,86 112,78 L112,88 L88,88 Z", 0.22));
+
+  /* Le bloc tête est agrandi autour de son centre. Les cheveux, expressions
+     et couvre-chefs gardent ainsi exactement les mêmes points d'ancrage. */
+  const H = [];
 
   /* Les longueurs tombent DERRIÈRE la tête : la nuque les cache à la racine
      et elles n'empiètent jamais sur le visage. */
-  if (head !== "helm") S.push(...backHair(cut, opt.girl));
+  if (head !== "helm") H.push(...backHair(cut, opt.girl));
 
-  if (head === "hood") S.push(p("M72,58 C68,24 84,6 100,6 C116,6 132,24 128,58 C128,76 121,94 112,102 L88,102 C79,94 72,76 72,58 Z", CLOAK.base));
-  S.push(p("M100,24 C113,24 121,34 121,49 C121,63 112,75 100,79 C88,75 79,63 79,49 C79,34 87,24 100,24 Z", T.base));
-  S.push(ao("M120,50 C123,60 121,69 116,76 L112,72 C115,66 116,58 115,50 Z", 0.18));
+  if (head === "hood") H.push(p("M72,58 C68,24 84,6 100,6 C116,6 132,24 128,58 C128,76 121,94 112,102 L88,102 C79,94 72,76 72,58 Z", CLOAK.base));
+  H.push(p("M100,22 C116,22 124,35 123,51 C122,68 113,80 100,84 C87,80 78,68 77,51 C76,35 84,22 100,22 Z", T.base));
+  H.push(ao("M121,51 C124,62 121,72 115,79 L111,74 C115,67 116,59 115,51 Z", 0.18));
 
   /* --- chevelure, posée SUR le crâne */
-  S.push(...hairShapes(cut, head, opt.girl));
+  H.push(...hairShapes(cut, head, opt.girl));
 
   /* Oreilles par-dessus la coiffure : une coupe courte dégage l'oreille,
      elle ne l'avale pas. Masquées sous capuche et sous heaume. */
@@ -261,22 +289,26 @@ function heroShapes(opt) {
      par-dessus la ferait traverser les cheveux. */
   const earsShow = !opt.girl && cut !== "boucle";
   if (earsShow && head !== "hood" && head !== "helm") {
-    S.push(e(79.5, 54, 3.4, 5, T.base, { sw: 1.8 }));
-    S.push(e(120.5, 54, 3.4, 5, T.base, { sw: 1.8 }));
-    S.push(fold("M79,51 C81.5,53.5 81.5,56 80,58", T.line, 1.2, 0.6));
-    S.push(fold("M121,51 C118.5,53.5 118.5,56 120,58", T.line, 1.2, 0.6));
+    H.push(e(78, 55, 3.8, 5.4, T.base, { sw: 1.8 }));
+    H.push(e(122, 55, 3.8, 5.4, T.base, { sw: 1.8 }));
+    H.push(fold("M78,52 C81,54 81,57 79,59", T.line, 1.2, 0.6));
+    H.push(fold("M122,52 C119,54 119,57 121,59", T.line, 1.2, 0.6));
   }
 
   /* --- visage */
-  S.push(...faceShapes(opt.face, opt.girl, T));
+  H.push(...faceShapes(opt.face, opt.girl, T));
 
   /* --- couvre-chef par-dessus le visage */
-  S.push(...headgearShapes(head));
+  H.push(...headgearShapes(head));
+  S.push(...H.map((shape) => ({
+    ...shape,
+    a: { ...shape.a, transform: `${shape.a.transform || ""} translate(-16 -9) scale(1.16)`.trim() }
+  })));
 
-  /* --- bras avant, main, arme : toujours en dernier, la main lit « devant » */
-  S.push(p("M155,122 L134,109 L136,199 C136,206 142,211 145.5,211 C149,211 154,206 154,199 Z", sleeve));
-  S.push({ tag: "rect", a: { x: 135, y: 180, width: 20, height: 15, rx: 4 }, fill: LEATHER.base });
-  S.push(fold("M139,187 L151,186", LEATHER.line, 1.3, 0.55));
+  /* --- bras avant, détaché du torse : il porte l'objet au lieu de pendre. */
+  S.push(p("M133,109 C145,112 154,121 157,135 L153,183 C152,192 143,195 137,188 L135,137 Z", sleeve));
+  S.push(p("M136,178 L154,178 L154,193 L137,194 Z", LEATHER.base));
+  S.push(fold("M140,185 L151,184", LEATHER.line, 1.3, 0.55));
 
   if (hand === "staff") {
     S.push(p("M143,88 L152,88 L156,362 L147,362 Z", WOOD.base));
@@ -287,8 +319,8 @@ function heroShapes(opt) {
     S.push(c(143, 68, 4, "#DCF3F8", { noStroke: true }));
   }
 
-  S.push(c(145, 208, 9.5, T.base));
-  S.push(fold("M139,204 C142,201 148,201 151,204", T.line, 1.3, 0.55));
+  S.push(c(147, 204, 11, T.base));
+  S.push(fold("M140,201 C144,198 150,198 154,201", T.line, 1.4, 0.55));
 
   if (hand === "sword") {
     S.push(p("M141,222 L149,222 L149,194 L141,194 Z", LEATHER.dark));
@@ -455,24 +487,24 @@ function hairShapes(cut, head, girl) {
 
 function faceShapes(face, girl, T) {
   const S = [];
-  const brow = (x, dir) => p(`M${x - 5},45 Q${x},${42.5 + dir} ${x + 5},45`, "none", { sw: 1.9, stroke: HAIR.dark });
+  const brow = (x, dir) => p(`M${x - 5.5},44.5 Q${x},${41.8 + dir} ${x + 5.5},44.5`, "none", { sw: 2, stroke: HAIR.dark });
   const eye = (x) => [
-    e(x, 52, 2.7, 3.4, INK, { noStroke: true }),
-    c(x + 1.1, 50.7, 1.1, "#FFFFFF", { noStroke: true })
+    e(x, 52, 3.45, 4.15, INK, { noStroke: true }),
+    c(x + 1.25, 50.3, 1.35, "#FFFFFF", { noStroke: true })
   ];
   const lashes = girl
-    ? [p("M86.5,48.5 L84.5,46.5", "none", { sw: 1.4, stroke: INK }),
-       p("M113.5,48.5 L115.5,46.5", "none", { sw: 1.4, stroke: INK })]
+    ? [p("M86,48.5 L83.5,46.3", "none", { sw: 1.45, stroke: INK }),
+       p("M114,48.5 L116.5,46.3", "none", { sw: 1.45, stroke: INK })]
     : [];
 
   if (face === "cool") {
     /* Regard déterminé + cicatrice : l'équivalent aventurier du « cool ». */
-    S.push(p("M87,52 L97,52", "none", { sw: 3.4, stroke: INK }));
-    S.push(p("M103,52 L113,52", "none", { sw: 3.4, stroke: INK }));
+    S.push(p("M86.5,52 L97.5,52", "none", { sw: 3.6, stroke: INK }));
+    S.push(p("M102.5,52 L113.5,52", "none", { sw: 3.6, stroke: INK }));
     S.push(brow(92, -2), brow(108, -2));
     S.push(p("M114,42 L111,60", "none", { sw: 1.6, stroke: T.line }));
   } else if (face === "wink") {
-    S.push(p("M87,52 Q92,55 97,52", "none", { sw: 2.4, stroke: INK }));
+    S.push(p("M86.5,52 Q92,55.5 97.5,52", "none", { sw: 2.6, stroke: INK }));
     S.push(...eye(108));
     S.push(brow(92, 0), brow(108, 0));
   } else {
@@ -481,14 +513,14 @@ function faceShapes(face, girl, T) {
   }
 
   S.push(...lashes);
-  S.push(p("M100,56 L100,62.5", "none", { sw: 1.6, stroke: T.line }));
-  S.push(p("M100,62.5 C102.5,63 104,62 104.5,60.5", "none", { sw: 1.4, stroke: T.line }));
+  S.push(p("M100,56.5 L100,63", "none", { sw: 1.6, stroke: T.line }));
+  S.push(p("M100,63 C102.5,63.5 104,62.5 104.5,61", "none", { sw: 1.4, stroke: T.line }));
 
   if (face === "grin") {
-    S.push(p("M94,67 C97,72 103,72 106,67 Z", "#8A4048", { sw: 1.6 }));
+    S.push(p("M93.5,68 C97,73.5 103,73.5 106.5,68 Z", "#8A4048", { sw: 1.6 }));
     S.push(p("M94.5,67.5 L105.5,67.5", "none", { sw: 1.6, stroke: "#F7EEDD" }));
   } else {
-    S.push(p("M96,68.5 Q100,70.8 104,68.5", "none", { sw: 1.9, stroke: T.line }));
+    S.push(p("M95.5,69 Q100,72 104.5,69", "none", { sw: 2, stroke: T.line }));
   }
   return S;
 }
@@ -511,6 +543,14 @@ function headgearShapes(head) {
     S.push(fold("M84,32 C83,20 89,13 95,10", STEEL.lite, 2.6, 0.8));
     S.push(c(83, 38, 2, GOLD.base, { sw: 1 }));
     S.push(c(117, 38, 2, GOLD.base, { sw: 1 }));
+  } else if (head === "goggles") {
+    S.push(p("M74,29 C87,25 113,25 126,29", "none", { sw: 4.2, stroke: LEATHER.dark }));
+    S.push(c(89, 29, 9.5, GOLD.dark, { sw: 1.8 }));
+    S.push(c(111, 29, 9.5, GOLD.dark, { sw: 1.8 }));
+    S.push(c(89, 29, 6.2, "#80C8D8", { sw: 1.2 }));
+    S.push(c(111, 29, 6.2, "#80C8D8", { sw: 1.2 }));
+    S.push(p("M84,26 C86,23 89,22 92,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
+    S.push(p("M106,26 C108,23 111,22 114,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
   } else if (head === "wizard") {
     S.push(p("M54,34 C74,25 126,25 146,34 C126,43 74,43 54,34 Z", CLOAK.dark));
     S.push(p("M80,32 C82,16 92,2 104,0 C106,12 103,24 117,32 Z", CLOAK.base));
@@ -556,10 +596,13 @@ function renderFigure(opt) {
     </g>`;
 
   const ground = opt.ground === false ? ""
-    : `<ellipse cx="100" cy="372" rx="54" ry="8" fill="${INK}" opacity="0.16"/>`;
+    : `<ellipse cx="100" cy="348" rx="58" ry="8" fill="${INK}" opacity="0.18"/>`;
 
-  return `<svg class="${opt.cls || "avatar"}" viewBox="${opt.viewBox || "0 0 200 390"}" role="img" aria-label="${opt.alt || "hero"}">
-    ${defs}${ground}${body}${shading}
+  const mirrored = opt.mirror ? "translate(200 0) scale(-1 1)" : "";
+  const figure = `<g transform="${mirrored}"><g transform="translate(-8 8) scale(1.08 0.91)">${body}${shading}</g></g>`;
+
+  return `<svg class="${opt.cls || "avatar"}" viewBox="${opt.viewBox || "0 0 200 360"}" role="img" aria-label="${opt.alt || "hero"}">
+    ${defs}${ground}${figure}
   </svg>`;
 }
 
@@ -576,6 +619,7 @@ export function renderHero(pupil) {
     hand: HANDGEAR[pupil.weapon] || "none",
     face: pupil.face,
     girl: pupil.gender === "girl",
+    mirror: mirrorFor(pupil.id),
     alt: `${pupil.name || "hero"} the hero`,
     cls: `avatar ${pupil.skin === "grammar-mage" ? "magic" : ""}`
   });
@@ -606,6 +650,7 @@ export function renderItemArt(item) {
     hand: "none",
     face: "smile",
     girl: false,
+    mirror: false,
     ground: false,
     alt: item.name,
     cls: "avatar item-art"
@@ -659,6 +704,7 @@ export function renderMascot() {
     hand: "sword",
     face: "smile",
     girl: false,
+    mirror: false,
     alt: "hero mascot",
     cls: "mascot"
   });
