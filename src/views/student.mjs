@@ -105,7 +105,15 @@ export function renderStudentLocker(pupil, ui) {
   const next = getNextReward(pupil.level);
 
   return `
-    <section class="student-view locker ${statusClass(pupil)}">
+    <section class="student-view">
+      <div class="student-back">
+        <button class="btn btn-primary" type="button" data-action="change-hero">
+          ${icon("back")}<span>Change hero</span>
+        </button>
+        <p class="panel-note">This device is showing <strong>${escapeHtml(pupil.name)}</strong>. Tap the button if this is not you.</p>
+      </div>
+
+      <div class="locker ${statusClass(pupil)}">
       <div class="locker-hero">
         <div class="locker-art" ${heroStageAttributes(pupil)}>
           ${renderHero(pupil)}
@@ -147,8 +155,6 @@ export function renderStudentLocker(pupil, ui) {
           <p class="panel-note">${next
             ? `Level ${next.level} unlocks ${next.rewards.map(escapeHtml).join(", ")}.`
             : "You have unlocked every reward."}</p>
-
-          <button class="btn" type="button" data-action="change-hero">${icon("back")}<span>Not you? Pick another hero</span></button>
         </div>
       </div>
 
@@ -156,6 +162,7 @@ export function renderStudentLocker(pupil, ui) {
         <h2 class="section-heading">Shop</h2>
         <p class="panel-note">Buy once, then equip and swap whenever you like.</p>
         ${renderShop(pupil, ui.shopCategory)}
+      </div>
       </div>
     </section>
   `;
