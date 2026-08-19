@@ -35,6 +35,26 @@ horodatées. N'importe quelle machine qui ouvre l'URL retrouve les données.
 
 Voir `BACKEND.md` pour l'architecture, le déploiement sur cagipi et l'API.
 
+## Structure du code
+
+```text
+index.html          coque HTML (topbar + zones app/toasts/dialogues)
+styles.css          système visuel : tokens, composants, adaptations
+src/app.mjs         état d'interface, routage, événements délégués, persistance
+src/domain.mjs      règles du jeu (XP, HP, argent, boutique) — testé
+src/avatar.mjs      héros et icônes en SVG
+src/ui.mjs          briques de stats partagées (cœurs, barre XP, argent, niveau)
+src/views/board.mjs      plateau de classe (grille et liste)
+src/views/console.mjs    console de l'enseignant
+src/views/student.mjs    choix du héros et casier de l'élève
+src/views/shop.mjs       boutique, partagée entre les deux interfaces
+src/views/rules.mjs      page des règles
+src/views/modals.mjs     vue plein écran d'un héros, aperçu d'un article
+```
+
+Les vues ne produisent que du HTML ; `app.mjs` est seul à écouter les
+événements (`data-action` délégué sur `#app`) et à écrire l'état.
+
 ## Tester
 
 ```bash

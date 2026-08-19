@@ -1,70 +1,289 @@
+/* ============================================================
+   app.mjs — coque, routage, état d'interface, persistance
+   Le rendu est délégué aux vues ; ce fichier ne décide que de « quoi
+   afficher » et « que faire quand on touche l'écran ».
+   ============================================================ */
+
 import {
-  SKIN_TONES,
   STORAGE_KEY,
   addPupil,
   awardMoney,
   awardXp,
-  canBuyItem,
-  changeHp,
   changeHpMany,
   clearSelection,
   createInitialState,
   getCurrentClass,
-  getNextReward,
   getPupilById,
   getRewardsForLevel,
   getShopItem,
-  getShopItems,
   importState,
-  isEliminated,
+  isItemOwned,
   normalizeState,
+  purchaseItem,
   removePupil,
   renamePupil,
   restoreHpAll,
-  isItemOwned,
-  purchaseItem,
   selectAllInClass,
-  setSelectMode,
   toggleSelection,
-  updateCosmetics,
-  xpProgress
+  updateCosmetics
 } from "./domain.mjs";
-import {
-  renderHero,
-  renderItemArt,
-  renderCoinIcon,
-  renderHeartIcon,
-  renderMascot
-} from "./avatar.mjs";
+import { escapeHtml, icon } from "./ui.mjs";
+import { renderBoard } from "./views/board.mjs";
+import { renderConsole } from "./views/console.mjs";
+import { renderRules } from "./views/rules.mjs";
+import { renderStudentLocker, renderStudentPicker } from "./views/student.mjs";
+import { renderItemDialog, renderPupilDialog } from "./views/modals.mjs";
 
 const app = document.querySelector("#app");
-const toasts = document.querySelector("#toasts");
-const modalRoot = document.querySelector("#modal-root");
-// The backend only runs on cagipi. Other domains that mirror the app (e.g. a
-// static git-pull deploy) reverse-proxy /api/ back to it server-side, so the
-// browser always sees it as same-origin — see BACKEND.md.
+const toastRoot = document.querySelector("#toasts");
+const dialogRoot = document.querySelector("#dialog-root");
+
+// Le backend ne tourne que sur cagipi. Les domaines qui miroitent l'app
+// reverse-proxient /api/ vers lui, donc le navigateur le voit toujours en
+// same-origin — voir BACKEND.md.
 function apiUrl(path) {
   return new URL(`api/${path}`, document.baseURI).toString();
 }
 
-// Remembers which hero a student picked on this device, so their locker
-// reopens directly on the next visit. Device-local, never synced to the server.
+// Mémorise le héros choisi sur CET appareil, pour rouvrir le casier
+// directement à la visite suivante. Jamais synchronisé au serveur.
 const STUDENT_KEY = "game-of-more:student";
 
 let state = loadState();
 let history = [];
-let shopCategory = "outfit";
 let studentPupilId = loadStudentId();
 let persistTimer = null;
+let armedDanger = null;
+const pendingFlash = new Set();
 
-const SHOP_CATEGORIES = [
-  { type: "outfit", label: "Outfits" },
-  { type: "hat", label: "Hats" },
-  { type: "weapon", label: "Items" },
-  { type: "face", label: "Faces" },
-  { type: "hair", label: "Hair" },
-  { type: "title", label: "Titles" }
-];
+/* État d'interface : préférences de la session, jamais persistées avec le
+   jeu. Les remettre à zéro ne doit rien coûter à personne. */
+const ui = {
+  scope: "selection",
+  query: "",
+  density: "auto",
+  shopCategory: "outfit",
+  xpAmount: 100,
+  coinAmount: 20,
+  openPanels: new Set(["hero"])
+};
+
+/* ---------- Routage ---------- */
+
+function currentView() {
+  if (location.hash === "#rules") return "rules";
+  if (location.hash.startsWith("#student")) return "student";
+  return "board";
+}
+
+function navigate(hash) {
+  if (location.hash === hash) render();
+  else location.hash = hash;
+}
+
+window.addEventListener("hashchange", () => {
+  closeDialog();
+  ui.query = "";
+  render();
+});
+
+/* ---------- Rendu ---------- */
+
+function render() {
+  const view = currentView();
+  const memory = captureUiMemory();
+
+  app.innerHTML = `
+    ${renderTopbar(view)}
+    ${renderViewBody(view)}
+  `;
+
+  restoreUiMemory(memory);
+  flushFlash();
+}
+
+function renderViewBody(view) {
+  const classroom = getCurrentClass(state);
+
+  if (view === "rules") {
+    return `<main class="page page-narrow">${renderBanner()}${renderRules()}</main>`;
+  }
+
+  if (view === "student") {
+    const pupil = studentPupilId ? getPupilById(state, studentPupilId) : null;
+    if (studentPupilId && !pupil) rememberStudent(null);
+    return `
+      <main class="page page-narrow">
+        ${renderBanner()}
+        ${pupil ? renderStudentLocker(pupil, ui) : renderStudentPicker(classroom, ui)}
+      </main>
+    `;
+  }
+
+  const targets = getTargets();
+  const focused = state.selectedPupilId ? getPupilById(state, state.selectedPupilId) : null;
+
+  return `
+    <main class="page page-board">
+      ${renderBoard(classroom, ui, state.selectedPupilIds)}
+      <aside class="console" aria-label="Teacher console">
+        ${renderConsole({
+          classroom,
+          ui,
+          targets,
+          focused,
+          canUndo: history.length > 0,
+          events: state.events
+        })}
+      </aside>
+    </main>
+    <input type="file" id="import-file" accept="application/json,.json" hidden />
+  `;
+}
+
+function renderTopbar(view) {
+  return `
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-mark" src="./assets/emblem.svg" alt="" width="32" height="32" />
+        <span class="brand-name">Game <em>of</em> More</span>
+      </div>
+
+      <nav class="segmented class-tabs" aria-label="Classes">
+        ${state.classes.map((classroom) => {
+          const active = classroom.id === state.activeClassId;
+          return `<button type="button" class="${active ? "is-active" : ""}" data-action="select-class" data-class-id="${classroom.id}" aria-pressed="${active}">${escapeHtml(classroom.name)}</button>`;
+        }).join("")}
+      </nav>
+
+      <div class="topbar-end">
+        <div class="segmented" role="group" aria-label="Interface">
+          <button type="button" class="${view === "board" ? "is-active" : ""}" data-action="show-board" aria-pressed="${view === "board"}">Teacher</button>
+          <button type="button" class="${view === "student" ? "is-active" : ""}" data-action="show-student" aria-pressed="${view === "student"}">Students</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost ${view === "rules" ? "is-active" : ""}" data-action="show-rules">${icon("book")}<span>Rules</span></button>
+      </div>
+    </header>
+  `;
+}
+
+/* La grande bannière reste sur les écrans que la classe regarde ensemble ;
+   le plateau, lui, rend chaque pixel vertical aux héros. */
+function renderBanner() {
+  return `
+    <div class="banner">
+      <img src="./assets/banner.png" alt="" />
+      <h1 class="banner-title">Game <em>of</em> More</h1>
+    </div>
+  `;
+}
+
+/* ---------- Cible des récompenses ---------- */
+
+function getTargets() {
+  const classroom = getCurrentClass(state);
+  if (ui.scope === "class") return classroom.pupils.map((pupil) => pupil.id);
+  const inClass = new Set(classroom.pupils.map((pupil) => pupil.id));
+  return state.selectedPupilIds.filter((id) => inClass.has(id));
+}
+
+function getShopPupil() {
+  if (currentView() === "student") return studentPupilId ? getPupilById(state, studentPupilId) : null;
+  return state.selectedPupilId ? getPupilById(state, state.selectedPupilId) : null;
+}
+
+/* ---------- Mémoire d'interface entre deux rendus ----------
+   Un rendu complet est simple et sûr ; encore faut-il qu'il ne vole ni le
+   curseur de la recherche ni la position de la console. */
+
+function captureUiMemory() {
+  const active = document.activeElement;
+  return {
+    focusId: active && active.id ? active.id : null,
+    caret: active && typeof active.selectionStart === "number" ? active.selectionStart : null,
+    consoleScroll: app.querySelector(".console")?.scrollTop ?? 0,
+    pageScroll: window.scrollY
+  };
+}
+
+function restoreUiMemory(memory) {
+  const console_ = app.querySelector(".console");
+  if (console_) console_.scrollTop = memory.consoleScroll;
+
+  if (memory.focusId) {
+    const next = document.getElementById(memory.focusId);
+    if (next) {
+      next.focus({ preventScroll: true });
+      if (memory.caret !== null && typeof next.setSelectionRange === "function") {
+        try {
+          next.setSelectionRange(memory.caret, memory.caret);
+        } catch {
+          // Les champs number refusent setSelectionRange : sans importance.
+        }
+      }
+    }
+  }
+
+  window.scrollTo({ top: memory.pageScroll });
+}
+
+function flushFlash() {
+  if (!pendingFlash.size) return;
+  for (const id of pendingFlash) {
+    const card = app.querySelector(`[data-pupil-id="${id}"]`)?.closest(".hero-card, .hero-row");
+    if (!card) continue;
+    card.classList.add("is-flash");
+    card.addEventListener("animationend", () => card.classList.remove("is-flash"), { once: true });
+  }
+  pendingFlash.clear();
+}
+
+/* ---------- Événements ----------
+   Un seul écouteur par type sur #app : le DOM est reconstruit à chaque
+   rendu, donc rien à rebrancher, rien à oublier de débrancher. */
+
+app.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-action]");
+  if (!trigger || trigger.tagName === "FORM") return;
+  const action = trigger.dataset.action;
+  if (!ACTIONS[action]) return;
+  event.preventDefault();
+  ACTIONS[action](trigger);
+});
+
+app.addEventListener("submit", (event) => {
+  const form = event.target.closest("form[data-action]");
+  if (!form) return;
+  event.preventDefault();
+  const action = FORMS[form.dataset.action];
+  if (action) action(form);
+});
+
+app.addEventListener("input", (event) => {
+  const field = event.target;
+  if (field.dataset.action === "search") {
+    ui.query = field.value;
+    render();
+    return;
+  }
+  if (field.id === "xp-amount") ui.xpAmount = field.value;
+  if (field.id === "coin-amount") ui.coinAmount = field.value;
+});
+
+app.addEventListener("toggle", (event) => {
+  const panel = event.target.closest("details[data-panel]");
+  if (!panel) return;
+  if (panel.open) ui.openPanels.add(panel.dataset.panel);
+  else ui.openPanels.delete(panel.dataset.panel);
+}, true);
+
+document.addEventListener("keydown", (event) => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName);
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !typing) {
+    event.preventDefault();
+    undo();
+  }
+});
 
 window.addEventListener("storage", (event) => {
   if (event.key !== STORAGE_KEY || !event.newValue) return;
@@ -73,280 +292,339 @@ window.addEventListener("storage", (event) => {
     history = [];
     render();
   } catch {
-    // Ignore malformed writes from another tab.
+    // Écriture malformée venue d'un autre onglet : on ignore.
   }
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closePreview();
-});
+const ACTIONS = {
+  "show-board": () => navigate("#board"),
+  "show-student": () => navigate("#student"),
+  "show-rules": () => navigate("#rules"),
 
-window.addEventListener("hashchange", () => {
-  closePreview();
-  render();
-});
+  "select-class": (el) => {
+    disarmDanger();
+    commit({ ...state, activeClassId: el.dataset.classId, selectedPupilId: null, selectedPupilIds: [] }, { record: false });
+  },
 
-function currentView() {
-  if (location.hash === "#rules") return "rules";
-  if (location.hash.startsWith("#student")) return "student";
-  return "board";
-}
+  /* Toucher un héros le coche ET l'ouvre dans la console : deux besoins,
+     un seul geste, aucun mode à connaître. */
+  "toggle-pupil": (el) => {
+    const pupilId = el.dataset.pupilId;
+    const wasSelected = state.selectedPupilIds.includes(pupilId);
+    let next = toggleSelection(state, pupilId);
+    next = { ...next, selectedPupilId: wasSelected ? null : pupilId };
+    ui.scope = "selection";
+    if (!wasSelected) ui.openPanels.add("hero");
+    commit(next, { record: false });
+  },
 
-function render() {
-  if (currentView() === "rules") {
-    renderRulesPage();
-    return;
-  }
+  "zoom-pupil": (el) => openPupilDialog(el.dataset.pupilId),
+  "close-dialog": () => closeDialog(),
 
-  if (currentView() === "student") {
-    renderStudentView();
-    return;
-  }
-
-  const classroom = getCurrentClass(state);
-  const selectedPupil = state.selectedPupilId ? getPupilById(state, state.selectedPupilId) : null;
-
-  app.innerHTML = `
-    <main class="shell">
-      <section class="stage" data-density="${classroom.pupils.length > 24 ? "list" : "grid"}">
-        ${renderHeroBanner()}
-        <header class="stage-header stage-header--hud">
-          <nav class="header-nav">
-            <div class="class-tabs" role="tablist" aria-label="Classes">
-              ${state.classes.map(renderClassTab).join("")}
-            </div>
-          </nav>
-          <div class="header-nav">
-            ${renderStats(classroom)}
-            ${renderModeSwitch("board")}
-            <button class="rules-button" data-action="show-rules" type="button">Rules</button>
-          </div>
-        </header>
-        ${renderStage(classroom)}
-      </section>
-      <aside class="control-panel" aria-label="Teacher console">
-        ${renderControlPanel(classroom, selectedPupil)}
-      </aside>
-    </main>
-    <input type="file" id="import-file" accept="application/json,.json" hidden />
-  `;
-
-  bindEvents();
-}
-
-function renderHeroBanner() {
-  return `
-    <div class="hero-banner">
-      <img class="hero-banner-img" src="./assets/banner.png" alt="Game of More — adventure banner" />
-      <div class="hero-banner-copy">
-        <h1 class="hero-title">GAME <span class="accent">OF MORE</span></h1>
-      </div>
-    </div>
-  `;
-}
-
-/* The single switch between the two interfaces, living in the header of
-   both views next to the class tabs. */
-function renderModeSwitch(active) {
-  return `
-    <div class="class-tabs mode-switch" role="tablist" aria-label="Interface">
-      <button class="tab ${active === "board" ? "active" : ""}" data-action="show-board" role="tab" aria-selected="${active === "board"}">Teacher</button>
-      <button class="tab ${active === "student" ? "active" : ""}" data-action="show-student" role="tab" aria-selected="${active === "student"}">Students</button>
-    </div>
-  `;
-}
-
-function renderClassTab(classroom) {
-  const active = classroom.id === state.activeClassId;
-  return `
-    <button class="tab ${active ? "active" : ""}" data-action="select-class" data-class-id="${classroom.id}" role="tab" aria-selected="${active}">
-      ${escapeHtml(classroom.name)}
-    </button>
-  `;
-}
-
-function renderRulesPage() {
-  app.innerHTML = `
-    <main class="rules-shell">
-      <header class="stage-header">
-        <div class="brand">
-          <div class="brand-text">
-            <p class="eyebrow">The hero classroom quest</p>
-            <span class="brand-title">GAME <span class="accent">OF MORE</span></span>
-          </div>
-        </div>
-        <button class="rules-button" data-action="show-board" type="button">← Back to class</button>
-      </header>
-      <div class="rules-content">
-        <h1>How does it work?</h1>
-        <p class="rules-intro">Every student is a hero with HP, XP and a level.</p>
-
-        <div class="rules-grid">
-          <section class="rules-card">
-            <div class="rules-icon">${renderHeartIcon(true)}</div>
-            <h2>HP — Hit Points</h2>
-            <p>Bad behaviour costs HP. Reach 0 and the hero is out until they level up.</p>
-          </section>
-
-          <section class="rules-card">
-            <div class="rules-icon">⚡</div>
-            <h2>XP — Experience</h2>
-            <p>Homework, vocabulary and good behaviour earn XP. Level up to unlock rewards.</p>
-          </section>
-
-          <section class="rules-card">
-            <div class="rules-icon">${renderCoinIcon()}</div>
-            <h2>Money</h2>
-            <p>Good grades and nice actions earn money. Spend it in the hero shop.</p>
-          </section>
-
-          <section class="rules-card">
-            <div class="rules-icon">🏆</div>
-            <h2>Level up</h2>
-            <p>Level up to heal HP and unlock new outfits, hats, items and titles.</p>
-          </section>
-        </div>
-
-        <section class="rules-section">
-          <h2>Quick reference</h2>
-          <div class="rules-table">
-            <div class="rules-row"><span class="rules-action">Do homework</span><span class="rules-result">+100 XP</span></div>
-            <div class="rules-row"><span class="rules-action">Learn vocabulary</span><span class="rules-result">+150 XP</span></div>
-            <div class="rules-row"><span class="rules-action">Be nice</span><span class="rules-result">+50 XP</span></div>
-            <div class="rules-row"><span class="rules-action">Good grade</span><span class="rules-result">+Money</span></div>
-            <div class="rules-row"><span class="rules-action">Bad behaviour</span><span class="rules-result">-1 HP</span></div>
-          </div>
-        </section>
-      </div>
-    </main>
-  `;
-  bindEvents();
-}
-
-function navigate(hash) {
-  if (location.hash === hash) {
+  scope: (el) => {
+    ui.scope = el.dataset.scope;
     render();
+  },
+
+  "select-all": () => {
+    ui.scope = "selection";
+    commit(selectAllInClass(state, state.activeClassId), { record: false });
+  },
+
+  "clear-selection": () => commit(clearSelection(state), { record: false }),
+
+  density: (el) => {
+    ui.density = el.dataset.density;
+    render();
+  },
+
+  "clear-search": () => {
+    ui.query = "";
+    render();
+  },
+
+  "focus-add": () => {
+    ui.openPanels.add("add");
+    render();
+    const input = document.querySelector("#pupil-name");
+    input?.scrollIntoView({ block: "center", behavior: "smooth" });
+    input?.focus();
+  },
+
+  "award-xp": (el) => giveXp(Number(el.dataset.amount), el.dataset.reason),
+
+  step: (el) => {
+    const field = document.getElementById(el.dataset.field);
+    if (!field) return;
+    const step = Number(el.dataset.step);
+    const next = Math.max(1, (Number(field.value) || 0) + step);
+    field.value = next;
+    if (field.id === "xp-amount") ui.xpAmount = next;
+    if (field.id === "coin-amount") ui.coinAmount = next;
+  },
+
+  "hp-minus": () => changeTargetHp(-1),
+  "hp-plus": () => changeTargetHp(1),
+  "heal-all": () => {
+    commit(restoreHpAll(state, state.activeClassId));
+    toast("Hit points restored for the whole class.", "success");
+  },
+
+  "award-money": (el) => giveMoney(Number(el.dataset.amount)),
+
+  "remove-pupil": (el) => {
+    const pupil = getPupilById(state, el.dataset.pupilId);
+    if (!pupil) return;
+    commit(removePupil(state, pupil.id));
+    toast(`${pupil.name} removed.`, "warn", { undo: true });
+  },
+
+  "shop-category": (el) => {
+    ui.shopCategory = el.dataset.category;
+    render();
+  },
+
+  "preview-item": (el) => openItemDialog(el.dataset.itemId),
+  "shop-item": (el) => buyOrEquip(el.dataset.itemId),
+
+  "student-pick": (el) => {
+    rememberStudent(el.dataset.pupilId);
+    ui.query = "";
+    render();
+    window.scrollTo({ top: 0 });
+  },
+
+  "change-hero": () => {
+    rememberStudent(null);
+    render();
+  },
+
+  undo: () => undo(),
+
+  export: () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `game-of-more-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast("Backup file downloaded.", "success");
+  },
+
+  import: () => document.querySelector("#import-file")?.click(),
+
+  /* Effacement en deux temps plutôt qu'un confirm() natif : le second
+     appui est un choix, pas un réflexe, et la classe voit ce qui se passe. */
+  "reset-all": (el) => {
+    if (armedDanger !== "reset") {
+      armedDanger = "reset";
+      el.classList.add("is-armed");
+      el.querySelector("span").textContent = "Tap again to erase everything";
+      setTimeout(disarmDanger, 5000);
+      return;
+    }
+    disarmDanger();
+    commit(createInitialState());
+    toast("Every class was erased.", "warn", { undo: true });
+  }
+};
+
+const FORMS = {
+  "custom-xp": (form) => {
+    const amount = Number(new FormData(form).get("amount"));
+    giveXp(amount, "Custom XP");
+  },
+
+  "custom-money": (form) => {
+    const amount = Number(new FormData(form).get("amount"));
+    giveMoney(amount);
+  },
+
+  "add-pupil": (form) => {
+    const data = new FormData(form);
+    const name = String(data.get("name") || "").trim();
+    if (!name) {
+      toast("Type a first name before adding a hero.", "info");
+      form.querySelector("#pupil-name")?.focus();
+      return;
+    }
+    commit(addPupil(state, state.activeClassId, {
+      name,
+      gender: String(data.get("gender") || "boy"),
+      skinTone: String(data.get("skinTone") || "light")
+    }));
+    toast(`${name} joined ${getCurrentClass(state).name}.`, "success");
+    document.querySelector("#pupil-name")?.focus();
+  },
+
+  "rename-pupil": (form) => {
+    if (!state.selectedPupilId) return;
+    const name = String(new FormData(form).get("name") || "").trim();
+    if (!name) return;
+    commit(renamePupil(state, state.selectedPupilId, name));
+    toast("Name updated.", "success");
+  }
+};
+
+/* ---------- Attribution ---------- */
+
+function giveXp(amount, reason) {
+  const targets = getTargets();
+  if (!targets.length || !Number.isFinite(amount) || amount < 1) return;
+  targets.forEach((id) => pendingFlash.add(id));
+  commit(awardXp(state, targets, amount, reason));
+  toast(`+${amount} XP · ${reason} · ${describeTargets(targets)}`, "xp");
+}
+
+function giveMoney(amount) {
+  const targets = getTargets();
+  if (!targets.length || !Number.isFinite(amount) || amount < 1) return;
+  targets.forEach((id) => pendingFlash.add(id));
+  commit(awardMoney(state, targets, amount, "Teacher money"));
+  toast(`+${amount} coins · ${describeTargets(targets)}`, "coin");
+}
+
+function changeTargetHp(delta) {
+  const targets = getTargets();
+  if (!targets.length) return;
+  targets.forEach((id) => pendingFlash.add(id));
+  commit(changeHpMany(state, targets, delta));
+}
+
+function describeTargets(targets) {
+  if (ui.scope === "class") return getCurrentClass(state).name;
+  if (targets.length === 1) return getPupilById(state, targets[0])?.name || "1 hero";
+  return `${targets.length} heroes`;
+}
+
+function buyOrEquip(itemId) {
+  const pupil = getShopPupil();
+  const item = getShopItem(itemId);
+  if (!pupil || !item) return;
+
+  if (isItemOwned(pupil, itemId) || !item.price) {
+    commit(updateCosmetics(state, pupil.id, { [item.type]: itemId }));
+    toast(`${item.name} equipped.`, "success");
     return;
   }
-  location.hash = hash;
-}
 
-/* ---------- Student view ----------
-   Reached via #student. Each pupil finds their hero, reads their stats and
-   spends THEIR money in the shop. No XP/HP/money attribution here — that
-   stays in the teacher console. */
-
-function renderStudentView() {
-  const classroom = getCurrentClass(state);
-  const pupil = studentPupilId ? getPupilById(state, studentPupilId) : null;
-  if (studentPupilId && !pupil) rememberStudent(null);
-
-  app.innerHTML = `
-    <main class="student-shell">
-      <section class="stage">
-        ${renderHeroBanner()}
-        <header class="stage-header stage-header--hud">
-          <nav class="header-nav">
-            <div class="class-tabs" role="tablist" aria-label="Classes">
-              ${state.classes.map(renderClassTab).join("")}
-            </div>
-          </nav>
-          <div class="header-nav">
-            ${renderModeSwitch("student")}
-            <button class="rules-button" data-action="show-rules" type="button">Rules</button>
-          </div>
-        </header>
-        ${pupil ? renderStudentLocker(pupil) : renderStudentPicker(classroom)}
-      </section>
-    </main>
-  `;
-  bindEvents();
-}
-
-function renderStudentPicker(classroom) {
-  if (classroom.pupils.length === 0) {
-    return `
-      <div class="empty-state">
-        ${renderMascot()}
-        <h2>No heroes yet!</h2>
-        <p>Your teacher has not summoned any hero in ${escapeHtml(classroom.name)} yet.</p>
-      </div>
-    `;
+  const next = purchaseItem(state, pupil.id, itemId);
+  if (next === state) {
+    const why = pupil.level < item.minLevel
+      ? `${item.name} unlocks at level ${item.minLevel}.`
+      : `${item.name} costs ${item.price} coins, you have ${pupil.money}.`;
+    toast(why, "error");
+    return;
   }
-
-  return `
-    <section class="student-picker">
-      <div class="student-picker-head">
-        <h2>Who is your hero?</h2>
-        <p class="muted">Tap your card to see your hero and change your gear.</p>
-      </div>
-      <div class="roster-grid">
-        ${classroom.pupils.map(renderStudentCard).join("")}
-      </div>
-    </section>
-  `;
+  commit(next);
+  toast(`${item.name} bought and equipped.`, "levelup");
 }
 
-function renderStudentCard(pupil) {
-  return `
-    <article class="avatar-card student-card ${isEliminated(pupil) ? "eliminated" : ""}" data-action="student-pick" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Open ${escapeHtml(pupil.name)}'s hero">
-      <div class="name-row">
-        <strong>${escapeHtml(pupil.name)}</strong>
-        <span class="level-badge">LVL ${pupil.level}</span>
-      </div>
-      <div class="avatar-wrap">
-        ${renderHero(pupil)}
-        ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
-      </div>
-      <p class="title title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))}</p>
-      <div class="money-badge" aria-label="${pupil.money} money"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
-    </article>
-  `;
+/* ---------- Dialogues ---------- */
+
+function openPupilDialog(pupilId) {
+  const pupil = getPupilById(state, pupilId);
+  if (!pupil) return;
+  showDialog(renderPupilDialog(pupil));
 }
 
-function renderStudentLocker(pupil) {
-  const progress = xpProgress(pupil);
-  const next = getNextReward(pupil.level);
-  const gear = [
-    ["Outfit", getItemName("outfit", pupil.skin)],
-    ["Hat", getItemName("hat", pupil.hat)],
-    ["Item", getItemName("weapon", pupil.weapon)],
-    ["Hair", getItemName("hair", pupil.hair)],
-    ["Face", getItemName("face", pupil.face)]
-  ];
+function openItemDialog(itemId) {
+  const pupil = getShopPupil();
+  const item = getShopItem(itemId);
+  if (!pupil || !item) return;
+  showDialog(renderItemDialog(item, pupil));
+}
 
-  return `
-    <section class="locker ${isEliminated(pupil) ? "eliminated" : ""}">
-      <div class="locker-hero">
-        <div class="locker-stage">
-          ${renderHero(pupil)}
-          ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
-        </div>
-        <div class="locker-id">
-          <div class="pupil-modal-head">
-            <h3>${escapeHtml(pupil.name)}</h3>
-            <span class="level-badge big">LVL ${pupil.level}</span>
-          </div>
-          <p class="title title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))}</p>
-          <div class="hp-row big" aria-label="${pupil.hp} hit points out of ${pupil.maxHp}">${renderHpHearts(pupil)}</div>
-          <div class="xp-track large" aria-label="${progress.current} XP out of ${progress.needed}"><span style="width:${progress.percent}%"></span></div>
-          <div class="xp-label">${progress.current}/${progress.needed} XP</div>
-          <div class="money-badge big"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
-          <dl class="gear-list">
-            ${gear.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
-          </dl>
-          ${isEliminated(pupil) ? `<p class="locker-warning">You are out of HP! Level up to get back in the game.</p>` : ""}
-          <p class="muted next-reward">${next
-            ? `Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}`
-            : "Max rewards unlocked!"}</p>
-          <button class="ghost-button" type="button" data-action="change-hero">← Not you? Pick another hero</button>
-        </div>
-      </div>
-      <div class="locker-shop">
-        ${renderShop(pupil)}
-      </div>
-    </section>
-  `;
+function showDialog(html) {
+  dialogRoot.innerHTML = html;
+  const dialog = dialogRoot.querySelector("dialog");
+  if (!dialog) return;
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) closeDialog();
+    const close = event.target.closest("[data-action='close-dialog']");
+    if (close) closeDialog();
+  });
+  dialog.addEventListener("close", () => {
+    dialogRoot.innerHTML = "";
+  });
+  dialog.showModal();
+}
+
+function closeDialog() {
+  const dialog = dialogRoot.querySelector("dialog");
+  if (dialog?.open) dialog.close();
+  else dialogRoot.innerHTML = "";
+}
+
+function disarmDanger() {
+  armedDanger = null;
+  const armed = app.querySelector(".is-armed");
+  if (armed) render();
+}
+
+/* ---------- Historique et persistance ---------- */
+
+function commit(nextState, { record = true, notify = true } = {}) {
+  const previous = state;
+  if (record) {
+    history.push(previous);
+    if (history.length > 60) history.shift();
+  }
+  state = nextState;
+
+  if (notify) announce(previous, state);
+  saveAndRender();
+}
+
+function undo() {
+  if (!history.length) {
+    toast("Nothing left to undo.", "info");
+    return;
+  }
+  state = history.pop();
+  saveAndRender();
+  toast("Last change undone.", "info");
+}
+
+function announce(previous, next) {
+  for (const classroom of next.classes) {
+    for (const pupil of classroom.pupils) {
+      const before = getPupilById(previous, pupil.id);
+      if (!before) continue;
+
+      if (before.level < pupil.level) {
+        const rewards = [];
+        for (let level = before.level + 1; level <= pupil.level; level += 1) {
+          rewards.push(...getRewardsForLevel(level));
+        }
+        const unique = [...new Set(rewards)];
+        toast(`${pupil.name} reached level ${pupil.level}.${unique.length ? ` Unlocked: ${unique.join(", ")}.` : ""}`, "levelup");
+      }
+      if (before.hp > 0 && pupil.hp <= 0) toast(`${pupil.name} is out of HP.`, "warn");
+      if (before.hp <= 0 && pupil.hp > 0) toast(`${pupil.name} is back in the game.`, "success");
+    }
+  }
+}
+
+function saveAndRender() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    toast("Could not save locally: storage is full or blocked.", "error");
+  }
+  scheduleServerSave();
+  render();
+}
+
+function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return createInitialState();
+  try {
+    return normalizeState(JSON.parse(raw));
+  } catch {
+    return createInitialState();
+  }
 }
 
 function loadStudentId() {
@@ -363,833 +641,61 @@ function rememberStudent(pupilId) {
     if (pupilId) localStorage.setItem(STUDENT_KEY, pupilId);
     else localStorage.removeItem(STUDENT_KEY);
   } catch {
-    // Storage unavailable (private mode…): the choice just won't persist.
+    // Stockage indisponible (navigation privée…) : le choix ne survivra pas.
   }
 }
 
-/* The hero the shop acts on: the teacher's board selection in teacher view,
-   the student's own hero in student view. */
-function getShopPupilId() {
-  return currentView() === "student" ? studentPupilId : state.selectedPupilId;
-}
+document.addEventListener("change", (event) => {
+  if (event.target.id !== "import-file") return;
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  file.text()
+    .then((text) => {
+      const imported = importState(text);
+      const total = imported.classes.reduce((sum, classroom) => sum + classroom.pupils.length, 0);
+      commit(imported, { record: true, notify: false });
+      toast(`Import done: ${total} heroes restored.`, "success", { undo: true });
+    })
+    .catch((error) => toast(error.message || "Could not read that file.", "error"));
+});
 
-function renderStats(classroom) {
-  const total = classroom.pupils.length;
-  if (!total) return "";
-  const out = classroom.pupils.filter(isEliminated).length;
-  const average = (classroom.pupils.reduce((sum, pupil) => sum + pupil.level, 0) / total).toFixed(1);
-  return `
-    <div class="stats-bar">
-      <span class="stat-pill"><span class="dot" style="background:var(--amber)"></span><strong>${escapeHtml(classroom.name)}</strong></span>
-      <span class="stat-pill"><strong>${total}</strong> heroes</span>
-      <span class="stat-pill"><span class="dot" style="background:var(--coral)"></span><strong>${out}</strong> out</span>
-      <span class="stat-pill">avg level <strong>${average}</strong></span>
-    </div>
-  `;
-}
+/* ---------- Toasts ----------
+   Court, nommé, et annulable quand l'action est destructrice. */
 
-function renderStage(classroom) {
-  if (classroom.pupils.length === 0) {
-    return `
-      <div class="empty-state">
-        ${renderMascot()}
-        <h2>Your quest begins!</h2>
-        <p>Add your students from the teacher console to summon their heroes.</p>
-      </div>
-    `;
-  }
+function toast(message, kind = "info", { undo: withUndo = false } = {}) {
+  const node = document.createElement("div");
+  node.className = `toast toast-${kind}`;
+  node.innerHTML = `<p>${escapeHtml(message)}</p>`;
 
-  if (classroom.pupils.length > 24) {
-    return `
-      <div class="pupil-list">
-        ${classroom.pupils.map(renderListRow).join("")}
-      </div>
-    `;
-  }
-
-  return `
-    <div class="roster-grid">
-      ${classroom.pupils.map(renderAvatarCard).join("")}
-    </div>
-  `;
-}
-
-function renderAvatarCard(pupil) {
-  const progress = xpProgress(pupil);
-  const title = getItemName("title", pupil.title);
-  const selected = isCardSelected(pupil.id);
-
-  return `
-    <article class="avatar-card ${selected ? "selected" : ""} ${isEliminated(pupil) ? "eliminated" : ""}" data-action="select-pupil" data-pupil-id="${pupil.id}">
-      <div class="name-row">
-        <strong>${escapeHtml(pupil.name)}</strong>
-        <span class="level-badge">${state.selectMode && selected ? "✓" : `LVL ${pupil.level}`}</span>
-      </div>
-      <div class="avatar-wrap" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">
-        ${renderHero(pupil)}
-        ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
-        <span class="zoom-hint" aria-hidden="true">⤢</span>
-      </div>
-      <p class="title title-${pupil.title}">${escapeHtml(title)}</p>
-      <div class="money-badge" aria-label="${pupil.money} money"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
-      <div class="hp-row" aria-label="${pupil.hp} hit points out of ${pupil.maxHp}">
-        ${renderHpHearts(pupil)}
-      </div>
-      <div class="xp-track" aria-label="${progress.current} XP out of ${progress.needed}">
-        <span style="width:${progress.percent}%"></span>
-      </div>
-      <div class="xp-label">${progress.current}/${progress.needed} XP</div>
-    </article>
-  `;
-}
-
-function renderListRow(pupil) {
-  const progress = xpProgress(pupil);
-  const selected = isCardSelected(pupil.id);
-  return `
-    <article class="list-row ${selected ? "selected" : ""} ${isEliminated(pupil) ? "eliminated" : ""}" data-action="select-pupil" data-pupil-id="${pupil.id}">
-      <div class="mini-avatar" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">${renderHero(pupil)}</div>
-      <strong>${escapeHtml(pupil.name)}</strong>
-      <span>${state.selectMode && selected ? "✓" : `LVL ${pupil.level}`}</span>
-      <span>${pupil.hp}/${pupil.maxHp} HP</span>
-      <span class="money">${renderCoinIcon()} ${pupil.money}</span>
-      <div class="xp-track"><span style="width:${progress.percent}%"></span></div>
-      <span>${progress.current}/${progress.needed} XP</span>
-    </article>
-  `;
-}
-
-function isCardSelected(pupilId) {
-  return state.selectMode ? state.selectedPupilIds.includes(pupilId) : pupilId === state.selectedPupilId;
-}
-
-function getXpTargets() {
-  if (state.selectMode) return state.selectedPupilIds;
-  return state.selectedPupilId ? [state.selectedPupilId] : [];
-}
-
-function renderControlPanel(classroom, selectedPupil) {
-  const targets = getXpTargets();
-  const targetLabel = state.selectMode
-    ? `${targets.length} selected`
-    : selectedPupil
-      ? selectedPupil.name
-      : "No one selected";
-
-  return `
-    <div class="panel-header">
-      <div>
-        <h2>${escapeHtml(classroom.name)}</h2>
-        <p class="panel-subtitle">${targetLabel}</p>
-      </div>
-      <div class="header-actions">
-        <button class="icon-button ${state.selectMode ? "active" : ""}" data-action="toggle-select-mode" title="Select multiple" aria-label="Select multiple" aria-pressed="${state.selectMode}">☑</button>
-        <button class="icon-button" data-action="undo" title="Undo" aria-label="Undo">↺</button>
-        <button class="icon-button" data-action="import" title="Import" aria-label="Import">⬆</button>
-        <button class="icon-button" data-action="export" title="Export" aria-label="Export">⬇</button>
-      </div>
-    </div>
-
-    <details class="panel-section" open>
-      <summary>Quick actions</summary>
-      <div class="button-grid">
-        ${renderXpButton(100, "Homework")}
-        ${renderXpButton(150, "Vocabulary")}
-        ${renderXpButton(50, "Nice")}
-        ${renderXpButton(500, "Bonus")}
-      </div>
-      <form class="custom-xp" data-action="custom-xp">
-        <input name="amount" type="number" min="1" step="1" value="100" aria-label="Custom XP" />
-        <button type="submit">Give XP</button>
-        <button type="button" data-action="xp-all">Give all</button>
-      </form>
-      <div class="class-actions">
-        <form class="money-all" data-action="money-all">
-          <input name="amount" type="number" min="1" step="1" value="10" aria-label="Money amount" />
-          <button type="submit">Money to all</button>
-        </form>
-        <button class="heal-all" type="button" data-action="heal-all">Heal all HP</button>
-      </div>
-    </details>
-
-    ${state.selectMode ? renderBulkPanel(classroom) : selectedPupil ? renderSelectedPupil(selectedPupil) : renderNoSelection()}
-
-    <details class="panel-section">
-      <summary>Add student</summary>
-      <form class="add-form" data-action="add-pupil">
-        <div class="add-row">
-          <input id="pupil-name" name="name" autocomplete="off" placeholder="First name" />
-          <button type="submit">Add</button>
-        </div>
-        <div class="add-fields">
-          <label>Gender
-            <select name="gender">
-              <option value="boy">Boy</option>
-              <option value="girl">Girl</option>
-            </select>
-          </label>
-          <label>Skin
-            <select name="skinTone">
-              ${SKIN_TONES.map((tone) => `<option value="${tone.id}">${tone.name}</option>`).join("")}
-            </select>
-          </label>
-        </div>
-      </form>
-    </details>
-
-    <details class="panel-section">
-      <summary>Activity</summary>
-      <div class="events">
-        ${state.events.slice(0, 6).map(renderEvent).join("") || "<p class=\"muted\">No activity yet.</p>"}
-      </div>
-    </details>
-
-    <details class="panel-section danger-zone">
-      <summary>Danger zone</summary>
-      <button class="danger" type="button" data-action="reset-all">Reset all data</button>
-    </details>
-  `;
-}
-
-function renderBulkPanel(classroom) {
-  const ids = state.selectedPupilIds;
-  const names = classroom.pupils.filter((pupil) => ids.includes(pupil.id)).map((pupil) => pupil.name);
-  const disabled = ids.length ? "" : "disabled";
-
-  return `
-    <details class="panel-section selected-panel" open>
-      <summary>${ids.length} selected</summary>
-      <p class="muted">${names.length ? names.map(escapeHtml).join(", ") : "Tap characters on the board to select them."}</p>
-
-      <div class="stat-line">
-        <button type="button" data-action="select-all">Select all</button>
-        <button type="button" data-action="clear-selection" ${disabled}>Clear</button>
-      </div>
-
-      <div class="hp-controls">
-        <span>Bulk HP</span>
-        <button type="button" data-action="bulk-hp-minus" ${disabled}>-1</button>
-        <button type="button" data-action="bulk-hp-plus" ${disabled}>+1</button>
-      </div>
-
-      <div class="money-actions">
-        <span>Teacher money</span>
-        ${renderMoneyButtons("bulk-money", disabled)}
-      </div>
-    </details>
-  `;
-}
-
-function renderXpButton(amount, reason) {
-  return `
-    <button type="button" data-action="award-xp" data-amount="${amount}" data-reason="${reason}">
-      +${amount}<span>${reason}</span>
-    </button>
-  `;
-}
-
-function renderMoneyButtons(action, disabled = "") {
-  return [10, 20, 30, 40, 50, 60].map((amount) => (
-    `<button type="button" data-action="${action}" data-amount="${amount}" ${disabled}>+${amount}</button>`
-  )).join("");
-}
-
-function renderSelectedPupil(pupil) {
-  const progress = xpProgress(pupil);
-  return `
-    <details class="panel-section selected-panel" open>
-      <summary>Selected hero</summary>
-      <div class="selected-top">
-        <div class="mini-avatar" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">${renderHero(pupil)}</div>
-        <div>
-          <h3>${escapeHtml(pupil.name)}</h3>
-          <p class="title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))} · LVL ${pupil.level}</p>
-          <p class="money-balance">${pupil.money} money</p>
-        </div>
-      </div>
-
-      <form class="rename-form" data-action="rename-pupil">
-        <input name="name" value="${escapeHtml(pupil.name)}" aria-label="Rename student" />
-        <button type="submit">Rename</button>
-      </form>
-
-      <div class="stat-line">
-        <span>XP</span>
-        <strong>${progress.current}/${progress.needed}</strong>
-      </div>
-      <div class="xp-track large"><span style="width:${progress.percent}%"></span></div>
-
-      <div class="hp-controls">
-        <span>HP ${pupil.hp}/${pupil.maxHp}</span>
-        <button type="button" data-action="hp-minus">-1</button>
-        <button type="button" data-action="hp-plus">+1</button>
-      </div>
-
-      <div class="money-actions">
-        <span>Teacher money</span>
-        ${renderMoneyButtons("award-money")}
-      </div>
-
-      ${renderRewards(pupil)}
-
-      <button class="danger" type="button" data-action="remove-pupil">Remove student</button>
-    </details>
-
-    <details class="panel-section">
-      <summary>Hero shop</summary>
-      ${renderShop(pupil)}
-    </details>
-  `;
-}
-
-function renderRewards(pupil) {
-  const unlockedThisLevel = getRewardsForLevel(pupil.level);
-  const next = getNextReward(pupil.level);
-
-  return `
-    <div class="rewards">
-      <h4>Rewards</h4>
-      ${unlockedThisLevel.length
-        ? unlockedThisLevel.map((reward) => `<span>${escapeHtml(reward)}</span>`).join("")
-        : `<p class="muted">No new unlock at this level.</p>`}
-      ${next
-        ? `<p class="muted next-reward">Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}</p>`
-        : `<p class="muted next-reward">Max rewards unlocked!</p>`}
-    </div>
-  `;
-}
-
-function renderShop(pupil) {
-  const active = SHOP_CATEGORIES.find((category) => category.type === shopCategory) || SHOP_CATEGORIES[0];
-  return `
-    <div class="shop">
-      <p class="muted">Buy once, equip anytime.</p>
-      <div class="shop-tabs">
-        ${SHOP_CATEGORIES.map((category) => (
-          `<button type="button" class="shop-tab ${category.type === active.type ? "active" : ""}" data-action="shop-category" data-category="${category.type}">${category.label}</button>`
-        )).join("")}
-      </div>
-      <div class="shop-items">
-        ${getShopItems(active.type).map((item) => renderShopItem(item, pupil)).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderShopItem(item, pupil) {
-  const field = item.type === "outfit" ? "skin" : item.type;
-  const equipped = pupil[field] === item.id;
-  const owned = isItemOwned(pupil, item.id);
-  const locked = pupil.level < item.minLevel;
-  const affordable = canBuyItem(pupil, item);
-  let label = "Buy";
-  let disabled = "";
-  if (equipped) { label = "Equipped"; disabled = "disabled"; }
-  else if (owned) label = "Equip";
-  else if (locked) { label = `LVL ${item.minLevel}`; disabled = "disabled"; }
-  else if (!affordable) { label = `${item.price} money`; disabled = "disabled"; }
-  else label = `Buy ${item.price}`;
-
-  return `
-    <article class="shop-item ${equipped ? "equipped" : ""} ${locked ? "locked" : ""}">
-      <button class="shop-thumb-button" type="button" data-action="preview-item" data-item-id="${item.id}" aria-label="Preview ${escapeHtml(item.name)}">
-        ${renderItemThumb(item)}
-      </button>
-      <div class="shop-item-info">
-        <strong>${escapeHtml(item.name)}</strong>
-        <small>LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</small>
-      </div>
-      <button type="button" data-action="shop-item" data-item-id="${item.id}" ${disabled}>${label}</button>
-    </article>
-  `;
-}
-
-function renderItemThumb(item) {
-  if (item.type === "title") {
-    return `<span class="title-badge title-${item.id}">${escapeHtml(item.name)}</span>`;
-  }
-  return `<span class="shop-thumb">${renderItemArt(item)}</span>`;
-}
-
-function renderItemModal(item, pupil) {
-  const typeLabel = { outfit: "Outfit", hat: "Hat", weapon: "Item", face: "Face", hair: "Hair", title: "Title" }[item.type] || "Item";
-  const field = item.type === "outfit" ? "skin" : item.type;
-  const equipped = pupil[field] === item.id;
-  const owned = isItemOwned(pupil, item.id);
-  const locked = pupil.level < item.minLevel;
-  const status = equipped
-    ? "Equipped"
-    : owned
-      ? "Owned"
-      : locked
-        ? `Unlocks at LVL ${item.minLevel}`
-        : "Available to buy";
-
-  const visual = item.type === "title"
-    ? `<div class="preview-stage"><span class="title-badge big title-${item.id}">${escapeHtml(item.name)}</span></div>`
-    : `<div class="preview-stage">${renderItemArt(item)}</div>`;
-
-  return `
-    <div class="modal-backdrop">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(item.name)}">
-        <button class="modal-close" type="button" data-action="close-preview" aria-label="Close preview">×</button>
-        <h3>${escapeHtml(item.name)}</h3>
-        <p class="muted">${typeLabel} · LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</p>
-        ${visual}
-        <p class="muted status">${status}</p>
-      </div>
-    </div>
-  `;
-}
-
-/* Vue « en grand » d'un élève : pensée pour être projetée au tableau, donc
-   grande figure et chiffres lisibles du fond de la classe. Lecture seule —
-   les actions restent dans la console, on ne modifie rien par mégarde en
-   montrant un héros à toute la classe. */
-function renderPupilModal(pupil) {
-  const progress = xpProgress(pupil);
-  const next = getNextReward(pupil.level);
-  const gear = [
-    ["Outfit", getItemName("outfit", pupil.skin)],
-    ["Hat", getItemName("hat", pupil.hat)],
-    ["Item", getItemName("weapon", pupil.weapon)],
-    ["Hair", getItemName("hair", pupil.hair)],
-    ["Face", getItemName("face", pupil.face)]
-  ];
-
-  return `
-    <div class="modal-backdrop">
-      <div class="modal pupil-modal ${isEliminated(pupil) ? "eliminated" : ""}" role="dialog" aria-modal="true" aria-label="${escapeHtml(pupil.name)}">
-        <button class="modal-close" type="button" data-action="close-preview" aria-label="Close">×</button>
-        <div class="pupil-modal-stage">
-          ${renderHero(pupil)}
-          ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
-        </div>
-        <div class="pupil-modal-info">
-          <div class="pupil-modal-head">
-            <h3>${escapeHtml(pupil.name)}</h3>
-            <span class="level-badge big">LVL ${pupil.level}</span>
-          </div>
-          <p class="title title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))}</p>
-
-          <div class="hp-row big" aria-label="${pupil.hp} hit points out of ${pupil.maxHp}">${renderHpHearts(pupil)}</div>
-
-          <div class="xp-track large"><span style="width:${progress.percent}%"></span></div>
-          <div class="xp-label">${progress.current}/${progress.needed} XP</div>
-
-          <div class="money-badge big"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
-
-          <dl class="gear-list">
-            ${gear.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
-          </dl>
-
-          <p class="muted next-reward">${next
-            ? `Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}`
-            : "Max rewards unlocked!"}</p>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function openPupilView(pupilId) {
-  const pupil = getPupilById(state, pupilId);
-  if (!pupil) return;
-  modalRoot.innerHTML = renderPupilModal(pupil);
-  modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", closePreview);
-  modalRoot.querySelector(".modal")?.addEventListener("click", (event) => event.stopPropagation());
-  modalRoot.querySelector("[data-action='close-preview']")?.addEventListener("click", closePreview);
-}
-
-function openPreview(itemId) {
-  const pupilId = getShopPupilId();
-  const pupil = pupilId ? getPupilById(state, pupilId) : null;
-  const item = getShopItem(itemId);
-  if (!pupil || !item) return;
-  modalRoot.innerHTML = renderItemModal(item, pupil);
-  modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", closePreview);
-  modalRoot.querySelector(".modal")?.addEventListener("click", (event) => event.stopPropagation());
-  modalRoot.querySelector("[data-action='close-preview']")?.addEventListener("click", closePreview);
-}
-
-function closePreview() {
-  modalRoot.innerHTML = "";
-}
-
-function renderNoSelection() {
-  return `
-    <details class="panel-section no-selection" open>
-      <summary>Selected hero</summary>
-      <p class="muted">Tap a character on the board to manage their XP, HP, money and shop.</p>
-    </details>
-  `;
-}
-
-function renderEvent(event) {
-  const time = new Date(event.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  return `
-    <p class="event-line">
-      <span>${time}</span>
-      ${escapeHtml(event.reason)} ${event.amount > 0 ? "+" : ""}${event.amount}
-    </p>
-  `;
-}
-
-function renderHpHearts(pupil) {
-  return Array.from({ length: pupil.maxHp }, (_, index) => (
-    renderHeartIcon(index < pupil.hp)
-  )).join("");
-}
-
-function bindEvents() {
-  app.querySelector("[data-action='show-rules']")?.addEventListener("click", () => {
-    navigate("#rules");
-  });
-
-  app.querySelector("[data-action='show-board']")?.addEventListener("click", () => {
-    navigate("#board");
-  });
-
-  app.querySelectorAll("[data-action='show-student']").forEach((button) => {
+  if (withUndo) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "toast-undo";
+    button.textContent = "Undo";
     button.addEventListener("click", () => {
-      navigate("#student");
+      undo();
+      dismiss(node);
     });
-  });
-
-  app.querySelectorAll("[data-action='student-pick']").forEach((card) => {
-    const pick = () => {
-      rememberStudent(card.dataset.pupilId);
-      render();
-      window.scrollTo(0, 0);
-    };
-    card.addEventListener("click", pick);
-    card.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      pick();
-    });
-  });
-
-  app.querySelector("[data-action='change-hero']")?.addEventListener("click", () => {
-    rememberStudent(null);
-    render();
-  });
-
-  app.querySelectorAll("[data-action='select-class']").forEach((button) => {
-    button.addEventListener("click", () => {
-      commit(
-        { ...state, activeClassId: button.dataset.classId, selectedPupilId: null, selectedPupilIds: [] },
-        { record: false }
-      );
-    });
-  });
-
-  app.querySelectorAll("[data-action='select-pupil']").forEach((card) => {
-    card.addEventListener("click", () => {
-      if (state.selectMode) {
-        commit(toggleSelection(state, card.dataset.pupilId), { record: false });
-      } else {
-        commit({ ...state, selectedPupilId: card.dataset.pupilId }, { record: false });
-      }
-    });
-  });
-
-  app.querySelectorAll("[data-action='zoom-pupil']").forEach((zone) => {
-    const open = () => {
-      if (state.selectMode) return;   // en sélection multiple, le clic coche
-      openPupilView(zone.dataset.pupilId);
-    };
-    zone.addEventListener("click", open);
-    zone.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      commit({ ...state, selectedPupilId: zone.dataset.pupilId }, { record: false });
-      openPupilView(zone.dataset.pupilId);
-    });
-  });
-
-  app.querySelector("[data-action='toggle-select-mode']")?.addEventListener("click", () => {
-    commit(setSelectMode(state, !state.selectMode), { record: false });
-  });
-
-  app.querySelector("[data-action='select-all']")?.addEventListener("click", () => {
-    commit(selectAllInClass(state, state.activeClassId), { record: false });
-  });
-
-  app.querySelector("[data-action='clear-selection']")?.addEventListener("click", () => {
-    commit(clearSelection(state), { record: false });
-  });
-
-  app.querySelector("[data-action='bulk-hp-minus']")?.addEventListener("click", () => {
-    commit(changeHpMany(state, state.selectedPupilIds, -1));
-  });
-
-  app.querySelector("[data-action='bulk-hp-plus']")?.addEventListener("click", () => {
-    commit(changeHpMany(state, state.selectedPupilIds, 1));
-  });
-
-  app.querySelectorAll("[data-action='bulk-money']").forEach((button) => {
-    button.addEventListener("click", () => {
-      commit(awardMoney(state, state.selectedPupilIds, Number(button.dataset.amount), "Teacher money"));
-    });
-  });
-
-  app.querySelector("[data-action='add-pupil']")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    commit(addPupil(state, state.activeClassId, {
-      name: String(form.get("name") || ""),
-      gender: String(form.get("gender") || "boy"),
-      skinTone: String(form.get("skinTone") || "light")
-    }));
-  });
-
-  app.querySelectorAll("[data-action='award-xp']").forEach((button) => {
-    button.addEventListener("click", () => {
-      const targets = getXpTargets();
-      if (!targets.length) {
-        showToast("Select at least one character first.", "info");
-        return;
-      }
-      commit(awardXp(state, targets, Number(button.dataset.amount), button.dataset.reason));
-    });
-  });
-
-  app.querySelector("[data-action='custom-xp']")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const targets = getXpTargets();
-    if (!targets.length) {
-      showToast("Select at least one character first.", "info");
-      return;
-    }
-    const amount = Number(new FormData(event.currentTarget).get("amount"));
-    commit(awardXp(state, targets, amount, "Custom XP"));
-  });
-
-  app.querySelector("[data-action='xp-all']")?.addEventListener("click", () => {
-    const classroom = getCurrentClass(state);
-    const input = app.querySelector(".custom-xp input[name='amount']");
-    commit(awardXp(state, classroom.pupils.map((pupil) => pupil.id), Number(input?.value || 0), "Class XP"));
-  });
-
-  app.querySelector("[data-action='money-all']")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const classroom = getCurrentClass(state);
-    const amount = Number(new FormData(event.currentTarget).get("amount"));
-    commit(awardMoney(state, classroom.pupils.map((pupil) => pupil.id), amount, "Class money"));
-  });
-
-  app.querySelector("[data-action='heal-all']")?.addEventListener("click", () => {
-    commit(restoreHpAll(state, state.activeClassId));
-  });
-
-  app.querySelector("[data-action='hp-minus']")?.addEventListener("click", () => {
-    commit(changeHp(state, state.selectedPupilId, -1));
-  });
-
-  app.querySelector("[data-action='hp-plus']")?.addEventListener("click", () => {
-    commit(changeHp(state, state.selectedPupilId, 1));
-  });
-
-  app.querySelector("[data-action='rename-pupil']")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!state.selectedPupilId) return;
-    const name = new FormData(event.currentTarget).get("name");
-    commit(renamePupil(state, state.selectedPupilId, String(name || "")));
-  });
-
-  app.querySelectorAll("[data-action='award-money']").forEach((button) => {
-    button.addEventListener("click", () => {
-      commit(awardMoney(state, [state.selectedPupilId], Number(button.dataset.amount), "Teacher money"));
-    });
-  });
-
-  app.querySelectorAll("[data-action='shop-category']").forEach((button) => {
-    button.addEventListener("click", () => {
-      shopCategory = button.dataset.category;
-      const panel = app.querySelector(".control-panel");
-      const scrollTop = panel?.scrollTop ?? 0;
-      render();
-      const nextPanel = app.querySelector(".control-panel");
-      if (nextPanel) nextPanel.scrollTop = scrollTop;
-    });
-  });
-
-  app.querySelectorAll("[data-action='preview-item']").forEach((button) => {
-    button.addEventListener("click", () => {
-      openPreview(button.dataset.itemId);
-    });
-  });
-
-  app.querySelectorAll("[data-action='shop-item']").forEach((button) => {
-    button.addEventListener("click", () => {
-      const itemId = button.dataset.itemId;
-      const pupil = getPupilById(state, getShopPupilId());
-      const item = getShopItem(itemId);
-      if (!pupil || !item) return;
-      if (isItemOwned(pupil, itemId)) {
-        commit(updateCosmetics(state, pupil.id, { [item.type]: itemId }));
-        showToast(`${item.name} equipped.`, "success");
-      } else {
-        const next = purchaseItem(state, pupil.id, itemId);
-        if (next === state) {
-          showToast("This item is locked or needs more money.", "error");
-        } else {
-          commit(next);
-          showToast(`${item.name} unlocked!`, "levelup");
-        }
-      }
-    });
-  });
-
-  app.querySelector("[data-action='remove-pupil']")?.addEventListener("click", () => {
-    const pupil = getPupilById(state, state.selectedPupilId);
-    if (pupil && confirm(`Remove ${pupil.name}?`)) {
-      commit(removePupil(state, pupil.id));
-    }
-  });
-
-  app.querySelector("[data-action='undo']")?.addEventListener("click", () => {
-    undo();
-  });
-
-  app.querySelector("[data-action='import']")?.addEventListener("click", () => {
-    app.querySelector("#import-file")?.click();
-  });
-
-  app.querySelector("#import-file")?.addEventListener("change", (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    file.text().then(handleImport).catch(() => showToast("Could not read the file.", "error"));
-    event.target.value = "";
-  });
-
-  app.querySelector("[data-action='export']")?.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "game-of-more-export.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
-    showToast("Data exported.", "success");
-  });
-
-  app.querySelector("[data-action='reset-all']")?.addEventListener("click", () => {
-    if (!confirm("Reset ALL data? This erases every class, student and reward.")) return;
-    commit(createInitialState());
-    showToast("Data reset.", "info");
-  });
-}
-
-function commit(nextState, { record = true, notify = true } = {}) {
-  const previous = state;
-  if (record) {
-    history.push(previous);
-    if (history.length > 60) history.shift();
-  }
-  state = nextState;
-
-  if (notify) {
-    const changes = describeChanges(previous, state);
-    changes.levelUps.forEach((message) => showToast(message, "levelup"));
-    changes.eliminations.forEach((message) => showToast(message, "warn"));
-    changes.revives.forEach((message) => showToast(message, "success"));
+    node.appendChild(button);
   }
 
-  saveAndRender();
+  // Trois messages suffisent : au-delà, la pile masque la console au lieu
+  // de l'informer.
+  while (toastRoot.children.length >= 3) dismiss(toastRoot.firstElementChild);
+
+  toastRoot.appendChild(node);
+  requestAnimationFrame(() => node.classList.add("is-in"));
+  setTimeout(() => dismiss(node), withUndo ? 7000 : 3200);
 }
 
-function undo() {
-  if (!history.length) {
-    showToast("Nothing to undo.", "info");
-    return;
-  }
-  state = history.pop();
-  saveAndRender();
+function dismiss(node) {
+  if (!node.isConnected) return;
+  node.classList.remove("is-in");
+  setTimeout(() => node.remove(), 220);
 }
 
-function describeChanges(previous, next) {
-  const levelUps = [];
-  const eliminations = [];
-  const revives = [];
-
-  for (const classroom of next.classes) {
-    for (const pupil of classroom.pupils) {
-      const before = getPupilById(previous, pupil.id);
-      if (!before) continue;
-
-      if (before.level < pupil.level) {
-        const rewards = [];
-        for (let level = before.level + 1; level <= pupil.level; level += 1) {
-          rewards.push(...getRewardsForLevel(level));
-        }
-        const uniqueRewards = [...new Set(rewards)];
-        const rewardText = uniqueRewards.length ? ` Unlocked: ${uniqueRewards.join(", ")}.` : "";
-        levelUps.push(`${pupil.name} reached level ${pupil.level}!${rewardText}`);
-      }
-      if (before.hp > 0 && pupil.hp <= 0) {
-        eliminations.push(`${pupil.name} is out of HP!`);
-      }
-      if (before.hp <= 0 && pupil.hp > 0) {
-        revives.push(`${pupil.name} is back in the game!`);
-      }
-    }
-  }
-
-  return { levelUps, eliminations, revives };
-}
-
-function handleImport(text) {
-  try {
-    const imported = importState(text);
-    const total = imported.classes.reduce((sum, classroom) => sum + classroom.pupils.length, 0);
-    commit(imported, { record: true, notify: false });
-    showToast(`Import successful: ${total} heroes.`, "success");
-  } catch (error) {
-    showToast(error.message, "error");
-  }
-}
-
-function showToast(message, kind = "info") {
-  const toast = document.createElement("div");
-  toast.className = `toast ${kind}`;
-  toast.textContent = message;
-  toasts.appendChild(toast);
-
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 300);
-  }, 2800);
-}
-
-function saveAndRender() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    showToast("Could not save data (storage full or unavailable).", "error");
-  }
-  scheduleServerSave();
-  render();
-}
-
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return createInitialState();
-
-  try {
-    return normalizeState(JSON.parse(raw));
-  } catch {
-    showToast("Saved data was invalid, starting fresh.", "error");
-    return createInitialState();
-  }
-}
-
-// ---- Server persistence ---------------------------------------------
-// The app is served by the same origin as the backend, so the API lives at
-// /api/state. If it is unreachable (offline, or running the static file
-// locally), we silently keep using localStorage only.
+/* ---------- Serveur ---------- */
 
 function scheduleServerSave() {
   if (persistTimer) return;
@@ -1208,8 +714,8 @@ async function saveToServer() {
     });
     if (!response.ok) throw new Error(`save failed: ${response.status}`);
   } catch {
-    // Offline or no backend: data stays in localStorage and will be pushed
-    // on the next successful load.
+    // Hors ligne ou sans backend : localStorage suffit, la synchro se fera
+    // au prochain chargement réussi.
   }
 }
 
@@ -1217,7 +723,6 @@ async function bootstrapFromServer() {
   try {
     const response = await fetch(apiUrl("state"), { cache: "no-store" });
     if (response.status === 404) {
-      // Nothing stored server-side yet: push the local state up as a seed.
       saveToServer();
       return;
     }
@@ -1229,29 +734,13 @@ async function bootstrapFromServer() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // Ignore cache write failures; the server copy is authoritative.
+      // La copie serveur fait foi ; l'échec du cache local est sans effet.
     }
     render();
   } catch {
-    // Offline: keep whatever localStorage had.
+    // Hors ligne : on garde ce que localStorage contenait.
   }
 }
 
-function getItemName(type, id) {
-  return getShopItems(type).find((item) => item.id === id)?.name || "Rookie";
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 render();
-
-// Pull the server copy on startup (authoritative) after the local first paint.
-// Falls back to localStorage when the backend is unreachable or empty.
 bootstrapFromServer();
