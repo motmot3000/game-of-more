@@ -124,6 +124,8 @@ body {
 .avatar-card,
 .list-row,
 .empty-state,
+.locker-hero,
+.locker-shop,
 .modal {
   background:
     linear-gradient(180deg, var(--azure-deep), var(--azure)) top / 100% 3px no-repeat,
@@ -566,7 +568,9 @@ body {
   text-transform: uppercase;
   color: var(--azure-bright);
 }
-.control-panel h4 {
+.control-panel h4,
+.locker-shop h4,
+.locker-hero h4 {
   margin: 0 0 8px;
   font-family: var(--font-display);
   font-weight: 700;
@@ -575,7 +579,8 @@ body {
   text-transform: uppercase;
   color: var(--azure-bright);
 }
-.control-panel h5 {
+.control-panel h5,
+.locker-shop h5 {
   margin: 0 0 8px;
   font-size: 11px;
   font-weight: 700;
@@ -606,9 +611,11 @@ body {
   color: var(--bg-0);
 }
 
-/* Champs de formulaire — un seul style pour tout le panneau. */
+/* Champs de formulaire — un seul style pour les deux interfaces. */
 .control-panel input,
-.control-panel select {
+.control-panel select,
+.locker-shop input,
+.locker-shop select {
   font: inherit;
   font-size: 13px;
   width: 100%;
@@ -620,15 +627,21 @@ body {
   border-radius: 8px;
 }
 .control-panel input:focus-visible,
-.control-panel select:focus-visible {
+.control-panel select:focus-visible,
+.locker-shop input:focus-visible,
+.locker-shop select:focus-visible {
   outline: 2px solid var(--azure);
   outline-offset: 1px;
   border-color: var(--azure);
 }
-.control-panel input::placeholder { color: var(--muted-2); }
-.control-panel select option { background: var(--panel-2); color: var(--ink); }
+.control-panel input::placeholder,
+.locker-shop input::placeholder { color: var(--muted-2); }
+.control-panel select option,
+.locker-shop select option { background: var(--panel-2); color: var(--ink); }
 
-.control-panel button {
+.control-panel button,
+.locker-shop button,
+.ghost-button {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -641,9 +654,15 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 3px 0 rgba(0, 0, 0, 0.35);
   transition: background 0.14s, border-color 0.14s, transform 0.08s, color 0.14s, box-shadow 0.08s;
 }
-.control-panel button:hover:not(:disabled) { background: rgba(56, 201, 255, 0.14); border-color: var(--azure); color: var(--ink); }
-.control-panel button:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 0 rgba(0, 0, 0, 0.35); }
-.control-panel button:disabled { opacity: 0.42; cursor: not-allowed; }
+.control-panel button:hover:not(:disabled),
+.locker-shop button:hover:not(:disabled),
+.ghost-button:hover:not(:disabled) { background: rgba(56, 201, 255, 0.14); border-color: var(--azure); color: var(--ink); }
+.control-panel button:active:not(:disabled),
+.locker-shop button:active:not(:disabled),
+.ghost-button:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 0 rgba(0, 0, 0, 0.35); }
+.control-panel button:disabled,
+.locker-shop button:disabled,
+.ghost-button:disabled { opacity: 0.42; cursor: not-allowed; }
 
 .add-form { display: flex; flex-direction: column; gap: 8px; }
 .add-form > label {
@@ -1121,4 +1140,106 @@ body {
 @media (max-width: 620px) {
   .pupil-modal { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .pupil-modal-stage .avatar { height: 240px; }
+}
+
+/* ============================================================
+   Vue élèves (#student) : chacun retrouve son héros, consulte
+   ses stats et dépense SON argent dans la boutique. Même univers
+   visuel que le plateau, sans la console enseignant.
+   ============================================================ */
+
+.student-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px;
+}
+
+/* --- Choix du héros --- */
+
+.student-picker-head { text-align: center; padding: 6px 0 4px; }
+.student-picker-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 30px;
+  color: var(--ink);
+}
+.student-picker-head p { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+
+/* --- Vestiaire --- */
+
+.locker {
+  display: grid;
+  grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.locker-hero {
+  position: sticky;
+  top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.locker-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 2px;
+  background:
+    radial-gradient(60% 40% at 50% 92%, var(--azure-soft), transparent 70%),
+    linear-gradient(180deg, #1B3355, #0E1D34);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.locker-stage .avatar { width: 100%; height: 300px; }
+.locker.eliminated .locker-stage { filter: grayscale(0.8); opacity: 0.72; }
+
+.locker-id { display: flex; flex-direction: column; gap: 10px; }
+.locker-id .pupil-modal-head { padding-right: 0; }
+.locker-id .title { text-align: left; }
+.locker-id .gear-list { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+
+.locker-warning {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  color: #FFD7D7;
+  background: rgba(229, 72, 77, 0.16);
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  border-radius: 8px;
+}
+
+.locker-shop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+}
+/* Dans le vestiaire la boutique respire sur deux colonnes. */
+.locker-shop .shop-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+}
+
+.ghost-button { width: 100%; }
+
+@media (max-width: 960px) {
+  .locker { grid-template-columns: minmax(0, 1fr); }
+  .locker-hero { position: static; }
+}
+
+@media (max-width: 720px) {
+  .student-shell { padding: 12px; }
+  .locker-stage .avatar { height: 240px; }
+  .student-picker-head h2 { font-size: 24px; }
 }

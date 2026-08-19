@@ -16,6 +16,17 @@ http://localhost:5173
 
 Sans backend, l'application sauvegarde dans le `localStorage` du navigateur.
 
+## Deux interfaces
+
+- **Teacher** (`#board`) : plateau de classe + console d'attribution (XP, HP,
+  argent, ajout/suppression d'élèves). C'est la vue ouverte par défaut.
+- **Students** (`#student`) : chaque élève retrouve son héros, consulte ses
+  stats (HP, XP, niveau, argent) et dépense son argent dans la boutique
+  (achat + équipement). Le héros choisi est mémorisé sur l'appareil.
+
+La bascule entre les deux se fait via les onglets **Teacher / Students**
+dans l'en-tête, à côté des onglets de classe.
+
 ## Production (sauvegarde partagée)
 
 L'application est aussi servie par un petit backend Node (`server/server.mjs`)

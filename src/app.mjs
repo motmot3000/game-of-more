@@ -47,9 +47,14 @@ function apiUrl(path) {
   return new URL(`api/${path}`, document.baseURI).toString();
 }
 
+// Remembers which hero a student picked on this device, so their locker
+// reopens directly on the next visit. Device-local, never synced to the server.
+const STUDENT_KEY = "game-of-more:student";
+
 let state = loadState();
 let history = [];
 let shopCategory = "outfit";
+let studentPupilId = loadStudentId();
 let persistTimer = null;
 
 const SHOP_CATEGORIES = [
@@ -82,12 +87,19 @@ window.addEventListener("hashchange", () => {
 });
 
 function currentView() {
-  return location.hash === "#rules" ? "rules" : "board";
+  if (location.hash === "#rules") return "rules";
+  if (location.hash.startsWith("#student")) return "student";
+  return "board";
 }
 
 function render() {
   if (currentView() === "rules") {
     renderRulesPage();
+    return;
+  }
+
+  if (currentView() === "student") {
+    renderStudentView();
     return;
   }
 
@@ -97,13 +109,7 @@ function render() {
   app.innerHTML = `
     <main class="shell">
       <section class="stage" data-density="${classroom.pupils.length > 24 ? "list" : "grid"}">
-        <div class="hero-banner">
-          <img class="hero-banner-img" src="./assets/banner.png" alt="Game of More — adventure banner" />
-          <div class="hero-banner-copy">
-            <p class="eyebrow hero-eyebrow">The hero classroom quest</p>
-            <h1 class="hero-title">GAME <span class="accent">OF MORE</span></h1>
-          </div>
-        </div>
+        ${renderHeroBanner()}
         <header class="stage-header stage-header--hud">
           <nav class="header-nav">
             <div class="class-tabs" role="tablist" aria-label="Classes">
@@ -112,6 +118,7 @@ function render() {
           </nav>
           <div class="header-nav">
             ${renderStats(classroom)}
+            ${renderModeSwitch("board")}
             <button class="rules-button" data-action="show-rules" type="button">Rules</button>
           </div>
         </header>
@@ -125,6 +132,29 @@ function render() {
   `;
 
   bindEvents();
+}
+
+function renderHeroBanner() {
+  return `
+    <div class="hero-banner">
+      <img class="hero-banner-img" src="./assets/banner.png" alt="Game of More — adventure banner" />
+      <div class="hero-banner-copy">
+        <p class="eyebrow hero-eyebrow">The hero classroom quest</p>
+        <h1 class="hero-title">GAME <span class="accent">OF MORE</span></h1>
+      </div>
+    </div>
+  `;
+}
+
+/* The single switch between the two interfaces, living in the header of
+   both views next to the class tabs. */
+function renderModeSwitch(active) {
+  return `
+    <div class="class-tabs mode-switch" role="tablist" aria-label="Interface">
+      <button class="tab ${active === "board" ? "active" : ""}" data-action="show-board" role="tab" aria-selected="${active === "board"}">Teacher</button>
+      <button class="tab ${active === "student" ? "active" : ""}" data-action="show-student" role="tab" aria-selected="${active === "student"}">Students</button>
+    </div>
+  `;
 }
 
 function renderClassTab(classroom) {
@@ -191,6 +221,148 @@ function navigate(hash) {
     return;
   }
   location.hash = hash;
+}
+
+/* ---------- Student view ----------
+   Reached via #student. Each pupil finds their hero, reads their stats and
+   spends THEIR money in the shop. No XP/HP/money attribution here — that
+   stays in the teacher console. */
+
+function renderStudentView() {
+  const classroom = getCurrentClass(state);
+  const pupil = studentPupilId ? getPupilById(state, studentPupilId) : null;
+  if (studentPupilId && !pupil) rememberStudent(null);
+
+  app.innerHTML = `
+    <main class="student-shell">
+      <section class="stage">
+        ${renderHeroBanner()}
+        <header class="stage-header stage-header--hud">
+          <nav class="header-nav">
+            <div class="class-tabs" role="tablist" aria-label="Classes">
+              ${state.classes.map(renderClassTab).join("")}
+            </div>
+          </nav>
+          <div class="header-nav">
+            ${renderModeSwitch("student")}
+            <button class="rules-button" data-action="show-rules" type="button">Rules</button>
+          </div>
+        </header>
+        ${pupil ? renderStudentLocker(pupil) : renderStudentPicker(classroom)}
+      </section>
+    </main>
+  `;
+  bindEvents();
+}
+
+function renderStudentPicker(classroom) {
+  if (classroom.pupils.length === 0) {
+    return `
+      <div class="empty-state">
+        ${renderMascot()}
+        <h2>No heroes yet!</h2>
+        <p>Your teacher has not summoned any hero in ${escapeHtml(classroom.name)} yet.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <section class="student-picker">
+      <div class="student-picker-head">
+        <h2>Who is your hero?</h2>
+        <p class="muted">Tap your card to see your hero and change your gear.</p>
+      </div>
+      <div class="roster-grid">
+        ${classroom.pupils.map(renderStudentCard).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderStudentCard(pupil) {
+  return `
+    <article class="avatar-card student-card ${isEliminated(pupil) ? "eliminated" : ""}" data-action="student-pick" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Open ${escapeHtml(pupil.name)}'s hero">
+      <div class="name-row">
+        <strong>${escapeHtml(pupil.name)}</strong>
+        <span class="level-badge">LVL ${pupil.level}</span>
+      </div>
+      <div class="avatar-wrap">
+        ${renderHero(pupil)}
+        ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
+      </div>
+      <p class="title title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))}</p>
+      <div class="money-badge" aria-label="${pupil.money} money"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
+    </article>
+  `;
+}
+
+function renderStudentLocker(pupil) {
+  const progress = xpProgress(pupil);
+  const next = getNextReward(pupil.level);
+  const gear = [
+    ["Outfit", getItemName("outfit", pupil.skin)],
+    ["Hat", getItemName("hat", pupil.hat)],
+    ["Item", getItemName("weapon", pupil.weapon)],
+    ["Hair", getItemName("hair", pupil.hair)],
+    ["Face", getItemName("face", pupil.face)]
+  ];
+
+  return `
+    <section class="locker ${isEliminated(pupil) ? "eliminated" : ""}">
+      <div class="locker-hero">
+        <div class="locker-stage">
+          ${renderHero(pupil)}
+          ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
+        </div>
+        <div class="locker-id">
+          <div class="pupil-modal-head">
+            <h3>${escapeHtml(pupil.name)}</h3>
+            <span class="level-badge big">LVL ${pupil.level}</span>
+          </div>
+          <p class="title title-${pupil.title}">${escapeHtml(getItemName("title", pupil.title))}</p>
+          <div class="hp-row big" aria-label="${pupil.hp} hit points out of ${pupil.maxHp}">${renderHpHearts(pupil)}</div>
+          <div class="xp-track large" aria-label="${progress.current} XP out of ${progress.needed}"><span style="width:${progress.percent}%"></span></div>
+          <div class="xp-label">${progress.current}/${progress.needed} XP</div>
+          <div class="money-badge big"><span>Money</span>${renderCoinIcon()}<strong>${pupil.money}</strong></div>
+          <dl class="gear-list">
+            ${gear.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
+          </dl>
+          ${isEliminated(pupil) ? `<p class="locker-warning">You are out of HP! Level up to get back in the game.</p>` : ""}
+          <p class="muted next-reward">${next
+            ? `Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}`
+            : "Max rewards unlocked!"}</p>
+          <button class="ghost-button" type="button" data-action="change-hero">← Not you? Pick another hero</button>
+        </div>
+      </div>
+      <div class="locker-shop">
+        ${renderShop(pupil)}
+      </div>
+    </section>
+  `;
+}
+
+function loadStudentId() {
+  try {
+    return localStorage.getItem(STUDENT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberStudent(pupilId) {
+  studentPupilId = pupilId;
+  try {
+    if (pupilId) localStorage.setItem(STUDENT_KEY, pupilId);
+    else localStorage.removeItem(STUDENT_KEY);
+  } catch {
+    // Storage unavailable (private mode…): the choice just won't persist.
+  }
+}
+
+/* The hero the shop acts on: the teacher's board selection in teacher view,
+   the student's own hero in student view. */
+function getShopPupilId() {
+  return currentView() === "student" ? studentPupilId : state.selectedPupilId;
 }
 
 function renderStats(classroom) {
@@ -616,7 +788,8 @@ function openPupilView(pupilId) {
 }
 
 function openPreview(itemId) {
-  const pupil = state.selectedPupilId ? getPupilById(state, state.selectedPupilId) : null;
+  const pupilId = getShopPupilId();
+  const pupil = pupilId ? getPupilById(state, pupilId) : null;
   const item = getShopItem(itemId);
   if (!pupil || !item) return;
   modalRoot.innerHTML = renderItemModal(item, pupil);
@@ -661,6 +834,31 @@ function bindEvents() {
 
   app.querySelector("[data-action='show-board']")?.addEventListener("click", () => {
     navigate("#board");
+  });
+
+  app.querySelectorAll("[data-action='show-student']").forEach((button) => {
+    button.addEventListener("click", () => {
+      navigate("#student");
+    });
+  });
+
+  app.querySelectorAll("[data-action='student-pick']").forEach((card) => {
+    const pick = () => {
+      rememberStudent(card.dataset.pupilId);
+      render();
+      window.scrollTo(0, 0);
+    };
+    card.addEventListener("click", pick);
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      pick();
+    });
+  });
+
+  app.querySelector("[data-action='change-hero']")?.addEventListener("click", () => {
+    rememberStudent(null);
+    render();
   });
 
   app.querySelectorAll("[data-action='select-class']").forEach((button) => {
@@ -795,10 +993,12 @@ function bindEvents() {
   app.querySelector("[data-action='shop-category']")?.addEventListener("change", (event) => {
     shopCategory = event.currentTarget.value;
     const panel = app.querySelector(".control-panel");
-    const scrollTop = panel?.scrollTop ?? 0;
+    const scrollTop = panel?.scrollTop ?? null;
+    const pageY = window.scrollY;
     render();
     const nextPanel = app.querySelector(".control-panel");
-    if (nextPanel) nextPanel.scrollTop = scrollTop;
+    if (nextPanel && scrollTop !== null) nextPanel.scrollTop = scrollTop;
+    window.scrollTo(0, pageY);
   });
 
   app.querySelectorAll("[data-action='preview-item']").forEach((button) => {
@@ -810,7 +1010,7 @@ function bindEvents() {
   app.querySelectorAll("[data-action='shop-item']").forEach((button) => {
     button.addEventListener("click", () => {
       const itemId = button.dataset.itemId;
-      const pupil = getPupilById(state, state.selectedPupilId);
+      const pupil = getPupilById(state, getShopPupilId());
       const item = getShopItem(itemId);
       if (!pupil || !item) return;
       if (isItemOwned(pupil, itemId)) {
