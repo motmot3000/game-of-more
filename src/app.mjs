@@ -98,9 +98,8 @@ function render() {
     <main class="shell">
       <section class="stage" data-density="${classroom.pupils.length > 24 ? "list" : "grid"}">
         <div class="hero-banner">
-          <img class="hero-banner-img" src="./assets/banner.png" alt="Game of More — adventure banner" />
+          <img class="hero-banner-img" src="./assets/banner.png" alt="" aria-hidden="true" />
           <div class="hero-banner-copy">
-            <p class="eyebrow hero-eyebrow">The hero classroom quest</p>
             <h1 class="hero-title">GAME <span class="accent">OF MORE</span></h1>
           </div>
         </div>
@@ -149,35 +148,44 @@ function renderRulesPage() {
         <button class="rules-button" data-action="show-board" type="button">← Back to class</button>
       </header>
       <div class="rules-content">
-        <p class="eyebrow">Rules</p>
         <h1>How does it work?</h1>
-        <p class="rules-intro">Every pupil has a character with HP, XP and LVL.</p>
+        <p class="rules-intro">Every student is a hero with HP, XP and a level.</p>
 
-        <ul class="rules-list">
-          <li>When you have a <strong>good behaviour</strong>, you get <strong>XP</strong> and <strong>money</strong>.</li>
-          <li>When you have a <strong>bad behaviour</strong>, you lose <strong>HP</strong>.</li>
-          <li>Everybody starts at <strong>LVL 1</strong> with <strong>5 HP</strong>.</li>
-          <li>If you reach <strong>0 HP</strong>, you are <strong>out of the game</strong>!</li>
-          <li><strong>Level up</strong> and you get your <strong>HP back</strong>.</li>
-          <li>Every level <strong>unlocks new rewards</strong>.</li>
-          <li>You can <strong>buy items</strong> with your money.</li>
-        </ul>
+        <div class="rules-grid">
+          <section class="rules-card">
+            <div class="rules-icon">${renderHeartIcon(true)}</div>
+            <h2>HP — Hit Points</h2>
+            <p>Bad behaviour costs HP. Reach 0 and the hero is out until they level up.</p>
+          </section>
+
+          <section class="rules-card">
+            <div class="rules-icon">⚡</div>
+            <h2>XP — Experience</h2>
+            <p>Homework, vocabulary and good behaviour earn XP. Level up to unlock rewards.</p>
+          </section>
+
+          <section class="rules-card">
+            <div class="rules-icon">${renderCoinIcon()}</div>
+            <h2>Money</h2>
+            <p>Good grades and nice actions earn money. Spend it in the hero shop.</p>
+          </section>
+
+          <section class="rules-card">
+            <div class="rules-icon">🏆</div>
+            <h2>Level up</h2>
+            <p>Level up to heal HP and unlock new outfits, hats, items and titles.</p>
+          </section>
+        </div>
 
         <section class="rules-section">
-          <h2>How to get XP?</h2>
-          <ul class="rules-list">
-            <li>Do your homework.</li>
-            <li>Learn your vocabulary.</li>
-          </ul>
-        </section>
-
-        <section class="rules-section">
-          <h2>How to get money?</h2>
-          <ul class="rules-list">
-            <li>Be nice.</li>
-            <li>Work well.</li>
-            <li>Good grades.</li>
-          </ul>
+          <h2>Quick reference</h2>
+          <div class="rules-table">
+            <div class="rules-row"><span class="rules-action">Do homework</span><span class="rules-result">+100 XP</span></div>
+            <div class="rules-row"><span class="rules-action">Learn vocabulary</span><span class="rules-result">+150 XP</span></div>
+            <div class="rules-row"><span class="rules-action">Be nice</span><span class="rules-result">+50 XP</span></div>
+            <div class="rules-row"><span class="rules-action">Good grade</span><span class="rules-result">+Money</span></div>
+            <div class="rules-row"><span class="rules-action">Bad behaviour</span><span class="rules-result">-1 HP</span></div>
+          </div>
         </section>
       </div>
     </main>
@@ -291,48 +299,27 @@ function getXpTargets() {
 function renderControlPanel(classroom, selectedPupil) {
   const targets = getXpTargets();
   const targetLabel = state.selectMode
-    ? `— ${targets.length} selected`
+    ? `${targets.length} selected`
     : selectedPupil
-      ? `— ${selectedPupil.name}`
-      : "";
+      ? selectedPupil.name
+      : "No one selected";
 
   return `
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Console</p>
         <h2>${escapeHtml(classroom.name)}</h2>
+        <p class="panel-subtitle">${targetLabel}</p>
       </div>
       <div class="header-actions">
-        <button class="icon-button ${state.selectMode ? "active" : ""}" data-action="toggle-select-mode" title="Select multiple characters" aria-label="Select multiple characters" aria-pressed="${state.selectMode}">☑</button>
+        <button class="icon-button ${state.selectMode ? "active" : ""}" data-action="toggle-select-mode" title="Select multiple" aria-label="Select multiple" aria-pressed="${state.selectMode}">☑</button>
         <button class="icon-button" data-action="undo" title="Undo" aria-label="Undo">↺</button>
-        <button class="icon-button" data-action="import" title="Import data" aria-label="Import data">⬆</button>
-        <button class="icon-button" data-action="export" title="Export data" aria-label="Export data">⬇</button>
+        <button class="icon-button" data-action="import" title="Import" aria-label="Import">⬆</button>
+        <button class="icon-button" data-action="export" title="Export" aria-label="Export">⬇</button>
       </div>
     </div>
 
-    <form class="add-form" data-action="add-pupil">
-      <label for="pupil-name">New student</label>
-      <div>
-        <input id="pupil-name" name="name" autocomplete="off" placeholder="First name" />
-        <button type="submit">Add</button>
-      </div>
-      <div class="add-fields">
-        <label for="pupil-gender">Gender
-          <select id="pupil-gender" name="gender">
-            <option value="boy">Boy</option>
-            <option value="girl">Girl</option>
-          </select>
-        </label>
-        <label for="pupil-tone">Skin
-          <select id="pupil-tone" name="skinTone">
-            ${SKIN_TONES.map((tone) => `<option value="${tone.id}">${tone.name}</option>`).join("")}
-          </select>
-        </label>
-      </div>
-    </form>
-
-    <section class="quick-actions">
-      <h3>Quick XP ${targetLabel}</h3>
+    <details class="panel-section" open>
+      <summary>Quick actions</summary>
       <div class="button-grid">
         ${renderXpButton(100, "Homework")}
         ${renderXpButton(150, "Vocabulary")}
@@ -344,23 +331,51 @@ function renderControlPanel(classroom, selectedPupil) {
         <button type="submit">Give XP</button>
         <button type="button" data-action="xp-all">Give all</button>
       </form>
-      <form class="money-all" data-action="money-all">
-        <input name="amount" type="number" min="1" step="1" value="10" aria-label="Money amount" />
-        <button type="submit">Add money to all</button>
-      </form>
-      <button class="heal-all" type="button" data-action="heal-all">Heal class HP</button>
-    </section>
+      <div class="class-actions">
+        <form class="money-all" data-action="money-all">
+          <input name="amount" type="number" min="1" step="1" value="10" aria-label="Money amount" />
+          <button type="submit">Money to all</button>
+        </form>
+        <button class="heal-all" type="button" data-action="heal-all">Heal all HP</button>
+      </div>
+    </details>
 
     ${state.selectMode ? renderBulkPanel(classroom) : selectedPupil ? renderSelectedPupil(selectedPupil) : renderNoSelection()}
 
-    <section class="events">
-      <h3>Activity</h3>
-      ${state.events.slice(0, 8).map(renderEvent).join("") || "<p class=\"muted\">No activity yet.</p>"}
-    </section>
+    <details class="panel-section">
+      <summary>Add student</summary>
+      <form class="add-form" data-action="add-pupil">
+        <div class="add-row">
+          <input id="pupil-name" name="name" autocomplete="off" placeholder="First name" />
+          <button type="submit">Add</button>
+        </div>
+        <div class="add-fields">
+          <label>Gender
+            <select name="gender">
+              <option value="boy">Boy</option>
+              <option value="girl">Girl</option>
+            </select>
+          </label>
+          <label>Skin
+            <select name="skinTone">
+              ${SKIN_TONES.map((tone) => `<option value="${tone.id}">${tone.name}</option>`).join("")}
+            </select>
+          </label>
+        </div>
+      </form>
+    </details>
 
-    <section class="danger-zone">
+    <details class="panel-section">
+      <summary>Activity</summary>
+      <div class="events">
+        ${state.events.slice(0, 6).map(renderEvent).join("") || "<p class=\"muted\">No activity yet.</p>"}
+      </div>
+    </details>
+
+    <details class="panel-section danger-zone">
+      <summary>Danger zone</summary>
       <button class="danger" type="button" data-action="reset-all">Reset all data</button>
-    </section>
+    </details>
   `;
 }
 
@@ -370,13 +385,13 @@ function renderBulkPanel(classroom) {
   const disabled = ids.length ? "" : "disabled";
 
   return `
-    <section class="selected-panel">
-      <h3>${ids.length} selected</h3>
+    <details class="panel-section selected-panel" open>
+      <summary>${ids.length} selected</summary>
       <p class="muted">${names.length ? names.map(escapeHtml).join(", ") : "Tap characters on the board to select them."}</p>
 
       <div class="stat-line">
-        <button type="button" data-action="select-all">Select all in class</button>
-        <button type="button" data-action="clear-selection" ${disabled}>Clear selection</button>
+        <button type="button" data-action="select-all">Select all</button>
+        <button type="button" data-action="clear-selection" ${disabled}>Clear</button>
       </div>
 
       <div class="hp-controls">
@@ -389,7 +404,7 @@ function renderBulkPanel(classroom) {
         <span>Teacher money</span>
         ${renderMoneyButtons("bulk-money", disabled)}
       </div>
-    </section>
+    </details>
   `;
 }
 
@@ -410,7 +425,8 @@ function renderMoneyButtons(action, disabled = "") {
 function renderSelectedPupil(pupil) {
   const progress = xpProgress(pupil);
   return `
-    <section class="selected-panel">
+    <details class="panel-section selected-panel" open>
+      <summary>Selected hero</summary>
       <div class="selected-top">
         <div class="mini-avatar" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">${renderHero(pupil)}</div>
         <div>
@@ -444,10 +460,13 @@ function renderSelectedPupil(pupil) {
 
       ${renderRewards(pupil)}
 
-      ${renderShop(pupil)}
-
       <button class="danger" type="button" data-action="remove-pupil">Remove student</button>
-    </section>
+    </details>
+
+    <details class="panel-section">
+      <summary>Hero shop</summary>
+      ${renderShop(pupil)}
+    </details>
   `;
 }
 
@@ -472,20 +491,15 @@ function renderShop(pupil) {
   const active = SHOP_CATEGORIES.find((category) => category.type === shopCategory) || SHOP_CATEGORIES[0];
   return `
     <div class="shop">
-      <h4>Hero shop</h4>
-      <p class="muted">Buy an item once, then equip it whenever you want.</p>
-      <label class="shop-filter" for="shop-category">Category</label>
-      <select id="shop-category" data-action="shop-category">
+      <p class="muted">Buy once, equip anytime.</p>
+      <div class="shop-tabs">
         ${SHOP_CATEGORIES.map((category) => (
-          `<option value="${category.type}" ${category.type === active.type ? "selected" : ""}>${category.label}</option>`
+          `<button type="button" class="shop-tab ${category.type === active.type ? "active" : ""}" data-action="shop-category" data-category="${category.type}">${category.label}</button>`
         )).join("")}
-      </select>
-      <section class="shop-category">
-        <h5>${active.label}</h5>
-        <div class="shop-items">
-          ${getShopItems(active.type).map((item) => renderShopItem(item, pupil)).join("")}
-        </div>
-      </section>
+      </div>
+      <div class="shop-items">
+        ${getShopItems(active.type).map((item) => renderShopItem(item, pupil)).join("")}
+      </div>
     </div>
   `;
 }
@@ -631,10 +645,10 @@ function closePreview() {
 
 function renderNoSelection() {
   return `
-    <section class="selected-panel no-selection">
-      <h3>Select a character</h3>
-      <p>Tap a card on the board to manage their XP, HP, skin and rewards.</p>
-    </section>
+    <details class="panel-section no-selection" open>
+      <summary>Selected hero</summary>
+      <p class="muted">Tap a character on the board to manage their XP, HP, money and shop.</p>
+    </details>
   `;
 }
 
@@ -792,13 +806,15 @@ function bindEvents() {
     });
   });
 
-  app.querySelector("[data-action='shop-category']")?.addEventListener("change", (event) => {
-    shopCategory = event.currentTarget.value;
-    const panel = app.querySelector(".control-panel");
-    const scrollTop = panel?.scrollTop ?? 0;
-    render();
-    const nextPanel = app.querySelector(".control-panel");
-    if (nextPanel) nextPanel.scrollTop = scrollTop;
+  app.querySelectorAll("[data-action='shop-category']").forEach((button) => {
+    button.addEventListener("click", () => {
+      shopCategory = button.dataset.category;
+      const panel = app.querySelector(".control-panel");
+      const scrollTop = panel?.scrollTop ?? 0;
+      render();
+      const nextPanel = app.querySelector(".control-panel");
+      if (nextPanel) nextPanel.scrollTop = scrollTop;
+    });
   });
 
   app.querySelectorAll("[data-action='preview-item']").forEach((button) => {
