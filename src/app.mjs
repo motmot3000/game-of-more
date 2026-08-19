@@ -56,6 +56,7 @@ let history = [];
 let shopCategory = "outfit";
 let studentPupilId = loadStudentId();
 let persistTimer = null;
+let previewReturnFocus = null;
 
 const SHOP_CATEGORIES = [
   { type: "outfit", label: "Outfits" },
@@ -294,7 +295,7 @@ function renderStudentCard(pupil) {
         <strong>${escapeHtml(pupil.name)}</strong>
         <span class="level-badge">LVL ${pupil.level}</span>
       </div>
-      <div class="avatar-wrap">
+      <div class="avatar-wrap" ${heroStageAttributes(pupil)}>
         ${renderHero(pupil)}
         ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
       </div>
@@ -318,7 +319,7 @@ function renderStudentLocker(pupil) {
   return `
     <section class="locker ${isEliminated(pupil) ? "eliminated" : ""}">
       <div class="locker-hero">
-        <div class="locker-stage">
+        <div class="locker-stage" ${heroStageAttributes(pupil)}>
           ${renderHero(pupil)}
           ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
         </div>
@@ -425,7 +426,7 @@ function renderAvatarCard(pupil) {
         <strong>${escapeHtml(pupil.name)}</strong>
         <span class="level-badge">${state.selectMode && selected ? "✓" : `LVL ${pupil.level}`}</span>
       </div>
-      <div class="avatar-wrap" data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">
+      <div class="avatar-wrap" ${heroStageAttributes(pupil)} data-action="zoom-pupil" data-pupil-id="${pupil.id}" role="button" tabindex="0" aria-label="Show ${escapeHtml(pupil.name)} in full size">
         ${renderHero(pupil)}
         ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
         <span class="zoom-hint" aria-hidden="true">⤢</span>
@@ -682,6 +683,8 @@ function renderShopItem(item, pupil) {
   const owned = isItemOwned(pupil, item.id);
   const locked = pupil.level < item.minLevel;
   const affordable = canBuyItem(pupil, item);
+  const rarity = getItemRarity(item);
+  const typeLabel = getItemTypeLabel(item.type);
   let label = "Buy";
   let disabled = "";
   if (equipped) { label = "Equipped"; disabled = "disabled"; }
@@ -691,15 +694,17 @@ function renderShopItem(item, pupil) {
   else label = `Buy ${item.price}`;
 
   return `
-    <article class="shop-item ${equipped ? "equipped" : ""} ${locked ? "locked" : ""}">
+    <article class="shop-item rarity-${rarity} ${equipped ? "equipped" : ""} ${locked ? "locked" : ""}" data-item-type="${item.type}">
       <button class="shop-thumb-button" type="button" data-action="preview-item" data-item-id="${item.id}" aria-label="Preview ${escapeHtml(item.name)}">
         ${renderItemThumb(item)}
+        <span class="item-tier" aria-hidden="true">${getItemTier(item)}</span>
       </button>
       <div class="shop-item-info">
         <strong>${escapeHtml(item.name)}</strong>
-        <small>LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</small>
+        <small>${typeLabel} · LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</small>
+        <span class="item-description">${escapeHtml(item.description || "A hero reward.")}</span>
       </div>
-      <button type="button" data-action="shop-item" data-item-id="${item.id}" ${disabled}>${label}</button>
+      <button class="shop-item-action" type="button" data-action="shop-item" data-item-id="${item.id}" ${disabled}>${label}</button>
     </article>
   `;
 }
@@ -712,7 +717,7 @@ function renderItemThumb(item) {
 }
 
 function renderItemModal(item, pupil) {
-  const typeLabel = { outfit: "Outfit", hat: "Hat", weapon: "Item", face: "Face", hair: "Hair", title: "Title" }[item.type] || "Item";
+  const typeLabel = getItemTypeLabel(item.type);
   const field = item.type === "outfit" ? "skin" : item.type;
   const equipped = pupil[field] === item.id;
   const owned = isItemOwned(pupil, item.id);
@@ -725,17 +730,20 @@ function renderItemModal(item, pupil) {
         ? `Unlocks at LVL ${item.minLevel}`
         : "Available to buy";
 
-  const visual = item.type === "title"
-    ? `<div class="preview-stage"><span class="title-badge big title-${item.id}">${escapeHtml(item.name)}</span></div>`
-    : `<div class="preview-stage">${renderItemArt(item)}</div>`;
+  const previewPupil = item.type === "title" ? pupil : { ...pupil, [field]: item.id };
+  const visual = `<div class="preview-stage preview-stage--hero" ${heroStageAttributes(previewPupil)}>
+    ${renderHero(previewPupil)}
+    ${item.type === "title" ? `<span class="preview-title title-${item.id}">${escapeHtml(item.name)}</span>` : ""}
+  </div>`;
 
   return `
     <div class="modal-backdrop">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(item.name)}">
+      <div class="modal item-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(item.name)}">
         <button class="modal-close" type="button" data-action="close-preview" aria-label="Close preview">×</button>
         <h3>${escapeHtml(item.name)}</h3>
-        <p class="muted">${typeLabel} · LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</p>
+        <p class="item-modal-meta"><span class="rarity-label rarity-${getItemRarity(item)}">${getItemRarity(item)}</span>${typeLabel} · LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</p>
         ${visual}
+        <p class="item-modal-description">${escapeHtml(item.description || "A hero reward.")}</p>
         <p class="muted status">${status}</p>
       </div>
     </div>
@@ -761,7 +769,7 @@ function renderPupilModal(pupil) {
     <div class="modal-backdrop">
       <div class="modal pupil-modal ${isEliminated(pupil) ? "eliminated" : ""}" role="dialog" aria-modal="true" aria-label="${escapeHtml(pupil.name)}">
         <button class="modal-close" type="button" data-action="close-preview" aria-label="Close">×</button>
-        <div class="pupil-modal-stage">
+        <div class="pupil-modal-stage" ${heroStageAttributes(pupil)}>
           ${renderHero(pupil)}
           ${isEliminated(pupil) ? `<div class="out-badge">OUT</div>` : ""}
         </div>
@@ -795,10 +803,12 @@ function renderPupilModal(pupil) {
 function openPupilView(pupilId) {
   const pupil = getPupilById(state, pupilId);
   if (!pupil) return;
+  previewReturnFocus = document.activeElement;
   modalRoot.innerHTML = renderPupilModal(pupil);
   modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", closePreview);
   modalRoot.querySelector(".modal")?.addEventListener("click", (event) => event.stopPropagation());
   modalRoot.querySelector("[data-action='close-preview']")?.addEventListener("click", closePreview);
+  requestAnimationFrame(() => modalRoot.querySelector("[data-action='close-preview']")?.focus());
 }
 
 function openPreview(itemId) {
@@ -806,14 +816,18 @@ function openPreview(itemId) {
   const pupil = pupilId ? getPupilById(state, pupilId) : null;
   const item = getShopItem(itemId);
   if (!pupil || !item) return;
+  previewReturnFocus = document.activeElement;
   modalRoot.innerHTML = renderItemModal(item, pupil);
   modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", closePreview);
   modalRoot.querySelector(".modal")?.addEventListener("click", (event) => event.stopPropagation());
   modalRoot.querySelector("[data-action='close-preview']")?.addEventListener("click", closePreview);
+  requestAnimationFrame(() => modalRoot.querySelector("[data-action='close-preview']")?.focus());
 }
 
 function closePreview() {
   modalRoot.innerHTML = "";
+  previewReturnFocus?.focus();
+  previewReturnFocus = null;
 }
 
 function renderNoSelection() {
@@ -1239,6 +1253,25 @@ async function bootstrapFromServer() {
 
 function getItemName(type, id) {
   return getShopItems(type).find((item) => item.id === id)?.name || "Rookie";
+}
+
+function heroStageAttributes(pupil) {
+  return `data-outfit="${escapeHtml(pupil.skin || "starter")}" data-gear="${escapeHtml(pupil.weapon || "no-weapon")}"`;
+}
+
+function getItemTypeLabel(type) {
+  return { outfit: "Outfit", hat: "Headgear", weapon: "Gear", face: "Expression", hair: "Hair", title: "Title" }[type] || "Item";
+}
+
+function getItemRarity(item) {
+  if (item.minLevel >= 4) return "legendary";
+  if (item.minLevel === 3) return "epic";
+  if (item.minLevel === 2) return "uncommon";
+  return "common";
+}
+
+function getItemTier(item) {
+  return ["I", "I", "II", "III", "IV", "V"][Math.min(5, Math.max(1, item.minLevel))];
 }
 
 function escapeHtml(value) {
