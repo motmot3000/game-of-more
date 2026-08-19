@@ -7,6 +7,7 @@ export const SKINS = [
     minLevel: 1,
     colors: ["#64d2ff", "#f7d65a", "#24233a"],
     reward: "Scout outfit",
+    description: "Field gear with compass and expedition scarf.",
     price: 0
   },
   {
@@ -15,6 +16,7 @@ export const SKINS = [
     minLevel: 2,
     colors: ["#1fbf92", "#f4c64e", "#1b2f3f"],
     reward: "Ranger outfit",
+    description: "A leaf-cut mantle made for quick explorers.",
     price: 20
   },
   {
@@ -23,6 +25,7 @@ export const SKINS = [
     minLevel: 3,
     colors: ["#8f6cff", "#ff7b92", "#241a3a"],
     reward: "Mage outfit",
+    description: "Scholar robes marked with a living rune.",
     price: 35
   },
   {
@@ -31,43 +34,107 @@ export const SKINS = [
     minLevel: 4,
     colors: ["#ffb545", "#3f8cff", "#2d2638"],
     reward: "Keeper outfit",
+    description: "Mail, cloak and crest of a veteran storyteller.",
     price: 55
+  },
+  {
+    id: "honor-knight",
+    name: "Knight",
+    minLevel: 6,
+    colors: ["#33507e", "#e2bc70", "#152036"],
+    reward: "Knight armor",
+    description: "Gilded steel plates and chivalric crest of honor.",
+    price: 75
+  },
+  {
+    id: "grand-archmage",
+    name: "Archmage",
+    minLevel: 8,
+    colors: ["#573566", "#7fc7d9", "#25142b"],
+    reward: "Archmage robes",
+    description: "Star-woven mantle shimmering with celestial runes.",
+    price: 90
+  },
+  {
+    id: "realm-sovereign",
+    name: "Sovereign",
+    minLevel: 10,
+    colors: ["#8e3230", "#e2bc70", "#211b16"],
+    reward: "Sovereign regalia",
+    description: "Legendary royal attire worn by masters of lore.",
+    price: 100
   }
 ];
 
 export const TITLES = [
-  { id: "rookie", name: "Rookie", minLevel: 1, price: 0 },
-  { id: "perfect-pupil", name: "Pupil", minLevel: 2, price: 20 },
-  { id: "grammar-master", name: "Master", minLevel: 3, price: 35 },
-  { id: "class-legend", name: "Legend", minLevel: 5, price: 60 }
+  { id: "rookie", name: "Rookie", minLevel: 1, price: 0, description: "The first mark on a new adventure." },
+  { id: "perfect-pupil", name: "Pupil", minLevel: 2, price: 20, description: "A badge for steady progress." },
+  { id: "pathfinder", name: "Pathfinder", minLevel: 3, price: 30, description: "Always finding the right words." },
+  { id: "grammar-master", name: "Master", minLevel: 4, price: 45, description: "Reserved for skilled wordsmiths." },
+  { id: "class-legend", name: "Legend", minLevel: 5, price: 60, description: "A revered figure across the classroom." },
+  { id: "scholar-virtuoso", name: "Scholar", minLevel: 6, price: 70, description: "Deep knowledge of tales and grammar." },
+  { id: "realm-champion", name: "Champion", minLevel: 7, price: 80, description: "Fearless defender of learning." },
+  { id: "grand-archon", name: "Grand Archon", minLevel: 8, price: 90, description: "Wise counselor and linguistic master." },
+  { id: "paragon-sovereign", name: "Sovereign", minLevel: 10, price: 100, description: "The summit of achievement and wisdom." }
 ];
 
 export const HATS = [
-  { id: "no-hat", name: "None", minLevel: 1, price: 0 },
-  { id: "explorer-cap", name: "Goggles", minLevel: 1, price: 15 },
-  { id: "wizard-hat", name: "Wizard", minLevel: 3, price: 30 },
-  { id: "gold-crown", name: "Crown", minLevel: 5, price: 55 }
+  { id: "no-hat", name: "No headgear", minLevel: 1, price: 0, description: "Travel with your hair uncovered." },
+  { id: "explorer-cap", name: "Skyglass Goggles", minLevel: 1, price: 15, description: "Brass lenses for distant discoveries." },
+  { id: "feather-beret", name: "Feathered Cap", minLevel: 2, price: 20, description: "A jaunty travel cap with a falcon feather." },
+  { id: "wizard-hat", name: "Runesmith Hat", minLevel: 3, price: 30, description: "A scholar's hat set with an azure rune." },
+  { id: "shadow-hood", name: "Explorer Hood", minLevel: 4, price: 40, description: "A deep cowl shielding from wind and rain." },
+  { id: "gold-crown", name: "Legend Crown", minLevel: 5, price: 55, description: "A three-gem crown earned at the summit." },
+  { id: "steel-helm", name: "Knight's Helm", minLevel: 6, price: 65, description: "Polished steel helm with a noble visor." },
+  { id: "winged-circlet", name: "Winged Diadem", minLevel: 7, price: 75, description: "Silver wings etched with ancient symbols." },
+  { id: "star-cowl", name: "Starfall Cowl", minLevel: 8, price: 85, description: "Constellation hood imbued with celestial light." },
+  { id: "celestial-crown", name: "Crown of Ancients", minLevel: 10, price: 100, description: "Radiant golden crown blazing with jewels." }
 ];
 
 export const WEAPONS = [
-  { id: "no-weapon", name: "None", minLevel: 1, price: 0 },
-  { id: "pencil-sword", name: "Sword", minLevel: 2, price: 20 },
-  { id: "word-wand", name: "Wand", minLevel: 3, price: 35 },
-  { id: "star-shield", name: "Shield", minLevel: 4, price: 45 }
+  { id: "no-weapon", name: "Empty hands", minLevel: 1, price: 0, description: "Ready for the next discovery." },
+  { id: "pencil-sword", name: "Quillblade", minLevel: 2, price: 20, description: "A bright steel blade for sharp ideas." },
+  { id: "word-wand", name: "Lexicon Staff", minLevel: 3, price: 35, description: "A crystal staff charged with new words." },
+  { id: "star-shield", name: "Story Shield", minLevel: 4, price: 45, description: "A star-crested shield for loyal allies." },
+  { id: "lore-lantern", name: "Lantern of Lore", minLevel: 5, price: 55, description: "A guiding beacon through complex tales." },
+  { id: "spell-grimoire", name: "Runic Grimoire", minLevel: 6, price: 65, description: "An ancient leather tome of secret grammar." },
+  { id: "dual-daggers", name: "Quill-Daggers", minLevel: 7, price: 75, description: "Twin swift daggers for agile heroes." },
+  { id: "astral-scepter", name: "Astral Scepter", minLevel: 8, price: 85, description: "Channel the celestial power of storytelling." },
+  { id: "wisdom-relic", name: "Relic of Wisdom", minLevel: 10, price: 100, description: "The ultimate artifact of the Game of More." }
 ];
 
 export const FACES = [
-  { id: "smile", name: "Smile", minLevel: 1, price: 0 },
-  { id: "grin", name: "Grin", minLevel: 1, price: 10 },
-  { id: "wink", name: "Wink", minLevel: 2, price: 20 },
-  { id: "cool", name: "Cool", minLevel: 3, price: 30 }
+  { id: "smile", name: "Calm", minLevel: 1, price: 0, description: "Focused and ready for class." },
+  { id: "grin", name: "Bright grin", minLevel: 1, price: 10, description: "A confident adventurer's smile." },
+  { id: "wink", name: "Quick wink", minLevel: 2, price: 20, description: "For heroes with a clever plan." },
+  { id: "cool", name: "Determined", minLevel: 3, price: 30, description: "A battle-tested look with a small scar." },
+  { id: "smirk", name: "Clever Smirk", minLevel: 4, price: 35, description: "A knowing glance from a sharp mind." },
+  { id: "fierce", name: "Heroic Gaze", minLevel: 6, price: 50, description: "Eyes burning with unyielding resolve." },
+  { id: "star-eyes", name: "Starry Vision", minLevel: 8, price: 70, description: "A glowing look filled with inspiration." },
+  { id: "transcendent", name: "Master's Aura", minLevel: 10, price: 90, description: "Serene golden gaze of a true legend." }
 ];
 
 export const HAIRS = [
-  { id: "short", name: "Short", minLevel: 1, price: 0 },
-  { id: "long", name: "Long", minLevel: 1, price: 0 },
-  { id: "curly", name: "Curly", minLevel: 2, price: 20 },
-  { id: "spiky", name: "Spiky", minLevel: 3, price: 30 }
+  { id: "short", name: "Side sweep", minLevel: 1, price: 0, description: "A practical explorer cut." },
+  { id: "long", name: "Long trail", minLevel: 1, price: 0, description: "Long hair shaped for the road." },
+  { id: "curly", name: "Cloud curls", minLevel: 2, price: 20, description: "A bold crown of natural curls." },
+  { id: "spiky", name: "Wind swept", minLevel: 3, price: 30, description: "Styled by high-altitude adventures." },
+  { id: "ponytail", name: "High Ponytail", minLevel: 4, price: 35, description: "Tied back for action and focus." },
+  { id: "braided", name: "Warrior Braids", minLevel: 6, price: 50, description: "Intricate braids adorned with silver beads." },
+  { id: "flowing", name: "Flowing Locks", minLevel: 8, price: 70, description: "Majestic waves carried by the wind." },
+  { id: "celestial-hair", name: "Crown Braids", minLevel: 10, price: 90, description: "Gilded woven braids of a champion." }
+];
+
+export const BESPOKE_ITEMS = [
+  {
+    id: "custom-bespoke",
+    name: "Item sur mesure",
+    minLevel: 10,
+    price: 100,
+    type: "bespoke",
+    reward: "Item sur mesure",
+    description: "Pour 100 pièces au niveau 10 : création exclusive forgée spécialement pour votre héros par le créateur du jeu !"
+  }
 ];
 
 export const SKIN_TONES = [
@@ -84,7 +151,8 @@ export const SHOP_ITEMS = [
   ...WEAPONS.map((item) => ({ ...item, type: "weapon" })),
   ...FACES.map((item) => ({ ...item, type: "face" })),
   ...HAIRS.map((item) => ({ ...item, type: "hair" })),
-  ...TITLES.map((item) => ({ ...item, type: "title" }))
+  ...TITLES.map((item) => ({ ...item, type: "title" })),
+  ...BESPOKE_ITEMS
 ];
 
 const CLASS_NAMES = ["7P", "8P"];
@@ -172,6 +240,7 @@ export function removePupil(state, pupilId) {
   return {
     ...state,
     selectedPupilId: state.selectedPupilId === pupilId ? null : state.selectedPupilId,
+    selectedPupilIds: state.selectedPupilIds.filter((id) => id !== pupilId),
     classes: state.classes.map((classroom) => ({
       ...classroom,
       pupils: classroom.pupils.filter((pupil) => pupil.id !== pupilId)
@@ -334,15 +403,39 @@ export function awardMoney(state, pupilIds, amount, reason = "Money") {
   return appendEvent(nextState, { type: "money", pupilIds: [...idSet], amount: Math.floor(moneyAmount), reason });
 }
 
-export function purchaseItem(state, pupilId, itemId) {
+export function purchaseItem(state, pupilId, itemId, note = "") {
   const pupil = getPupilById(state, pupilId);
   const item = getShopItem(itemId);
   if (!pupil || !item || !canBuyItem(pupil, item)) return state;
 
+  if (item.type === "bespoke") {
+    const nextState = mapPupil(state, pupilId, (current) => {
+      const customOrders = Array.isArray(current.customOrders) ? [...current.customOrders] : [];
+      customOrders.push({
+        id: cryptoId(),
+        orderedAt: new Date().toISOString(),
+        note: String(note || "").trim() || "Item sur mesure",
+        cost: item.price
+      });
+      return {
+        ...current,
+        money: current.money - item.price,
+        ownedItems: [...new Set([...current.ownedItems, item.id])],
+        customOrders
+      };
+    });
+    return appendEvent(nextState, {
+      type: "bespoke_order",
+      pupilIds: [pupilId],
+      amount: -item.price,
+      reason: note ? `Sur-mesure order: "${note}"` : "Sur-mesure item ordered"
+    });
+  }
+
   const nextState = mapPupil(state, pupilId, (current) => ({
     ...current,
     money: current.money - item.price,
-    ownedItems: [...current.ownedItems, item.id],
+    ownedItems: [...new Set([...current.ownedItems, item.id])],
     [cosmeticField(item.type)]: item.id
   }));
   return appendEvent(nextState, { type: "purchase", pupilIds: [pupilId], amount: -item.price, reason: `Bought ${item.name}` });
@@ -361,7 +454,8 @@ export function isItemOwned(pupil, itemId) {
 }
 
 export function canBuyItem(pupil, item) {
-  return !isItemOwned(pupil, item.id) && pupil.level >= item.minLevel && pupil.money >= item.price;
+  if (item.type !== "bespoke" && isItemOwned(pupil, item.id)) return false;
+  return pupil.level >= item.minLevel && pupil.money >= item.price;
 }
 
 export function getClassById(state, classId) {
@@ -463,6 +557,16 @@ function normalizePupil(pupil) {
     title,
     ...(Array.isArray(pupil.ownedItems) ? pupil.ownedItems.filter((id) => getShopItem(id)) : [])
   ])];
+  const customOrders = Array.isArray(pupil.customOrders)
+    ? pupil.customOrders
+      .filter((order) => order && typeof order === "object")
+      .map((order) => ({
+        id: String(order.id || cryptoId()),
+        orderedAt: Number.isNaN(Date.parse(order.orderedAt)) ? new Date().toISOString() : order.orderedAt,
+        note: String(order.note || "Item sur mesure").trim() || "Item sur mesure",
+        cost: Math.max(0, positiveInteger(order.cost, 100))
+      }))
+    : [];
   return {
     id: pupil.id || cryptoId(),
     name: String(pupil.name || "New hero").trim() || "New hero",
@@ -472,6 +576,7 @@ function normalizePupil(pupil) {
     level,
     money: Math.max(0, positiveInteger(pupil.money ?? pupil.coins, 0)),
     ownedItems,
+    customOrders,
     skin,
     title,
     hat: ownedItems.includes(hat) ? hat : "no-hat",

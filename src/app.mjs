@@ -9,6 +9,7 @@ import {
   addPupil,
   awardMoney,
   awardXp,
+  canBuyItem,
   changeHpMany,
   clearSelection,
   createInitialState,
@@ -259,6 +260,14 @@ app.addEventListener("submit", (event) => {
   if (action) action(form);
 });
 
+dialogRoot.addEventListener("submit", (event) => {
+  const form = event.target.closest("form[data-action]");
+  if (!form) return;
+  event.preventDefault();
+  const action = FORMS[form.dataset.action];
+  if (action) action(form);
+});
+
 app.addEventListener("input", (event) => {
   const field = event.target;
   if (field.dataset.action === "search") {
@@ -312,7 +321,12 @@ const ACTIONS = {
     const pupilId = el.dataset.pupilId;
     const wasSelected = state.selectedPupilIds.includes(pupilId);
     let next = toggleSelection(state, pupilId);
-    next = { ...next, selectedPupilId: wasSelected ? null : pupilId };
+    next = {
+      ...next,
+      selectedPupilId: wasSelected
+        ? (state.selectedPupilId === pupilId ? null : state.selectedPupilId)
+        : pupilId
+    };
     ui.scope = "selection";
     if (!wasSelected) ui.openPanels.add("hero");
     commit(next, { record: false });
@@ -464,6 +478,22 @@ const FORMS = {
     if (!name) return;
     commit(renamePupil(state, state.selectedPupilId, name));
     toast("Name updated.", "success");
+  },
+
+  "order-bespoke": (form) => {
+    const pupil = getShopPupil();
+    const data = new FormData(form);
+    const item = getShopItem(String(data.get("itemId") || ""));
+    const note = String(data.get("note") || "").trim();
+    if (!pupil || !item || item.type !== "bespoke" || !note) return;
+    if (!canBuyItem(pupil, item)) {
+      toast(`This order requires level ${item.minLevel} and ${item.price} coins.`, "error");
+      return;
+    }
+    const next = purchaseItem(state, pupil.id, item.id, note);
+    closeDialog();
+    commit(next);
+    toast(`Custom order saved for ${pupil.name}.`, "levelup");
   }
 };
 
@@ -502,6 +532,11 @@ function buyOrEquip(itemId) {
   const pupil = getShopPupil();
   const item = getShopItem(itemId);
   if (!pupil || !item) return;
+
+  if (item.type === "bespoke") {
+    openItemDialog(itemId);
+    return;
+  }
 
   if (isItemOwned(pupil, itemId) || !item.price) {
     commit(updateCosmetics(state, pupil.id, { [item.type]: itemId }));

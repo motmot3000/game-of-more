@@ -14,7 +14,8 @@ export const SHOP_CATEGORIES = [
   { type: "weapon", label: "Items" },
   { type: "hair", label: "Hair" },
   { type: "face", label: "Faces" },
-  { type: "title", label: "Titles" }
+  { type: "title", label: "Titles" },
+  { type: "bespoke", label: "Custom" }
 ];
 
 export function renderShop(pupil, activeType) {
@@ -49,7 +50,8 @@ export function renderShop(pupil, activeType) {
    « Buy 40 », « Equip », « Equipped ». Jamais « OK ». */
 function renderShopItem(item, pupil) {
   const field = item.type === "outfit" ? "skin" : item.type;
-  const equipped = pupil[field] === item.id;
+  const bespoke = item.type === "bespoke";
+  const equipped = !bespoke && pupil[field] === item.id;
   const owned = isItemOwned(pupil, item.id);
   const locked = pupil.level < item.minLevel;
   const affordable = canBuyItem(pupil, item);
@@ -57,7 +59,18 @@ function renderShopItem(item, pupil) {
   let label = `Buy ${item.price}`;
   let state = "buy";
   let disabled = "";
-  if (equipped) {
+  if (bespoke && locked) {
+    label = `Level ${item.minLevel}`;
+    state = "locked";
+    disabled = "disabled";
+  } else if (bespoke && !affordable) {
+    label = `Need ${item.price}`;
+    state = "poor";
+    disabled = "disabled";
+  } else if (bespoke) {
+    label = `Order ${item.price}`;
+    state = "buy";
+  } else if (equipped) {
     label = "Equipped";
     state = "equipped";
     disabled = "disabled";
@@ -84,7 +97,7 @@ function renderShopItem(item, pupil) {
       : "Free";
 
   return `
-    <article class="shop-item ${equipped ? "is-equipped" : ""} ${locked ? "is-locked" : ""}">
+    <article class="shop-item ${bespoke ? "is-bespoke" : ""} ${equipped ? "is-equipped" : ""} ${locked ? "is-locked" : ""}">
       <button
         class="shop-thumb"
         type="button"
@@ -95,6 +108,7 @@ function renderShopItem(item, pupil) {
       <div class="shop-item-text">
         <strong>${escapeHtml(item.name)}</strong>
         <small>${meta}</small>
+        ${item.description ? `<span class="shop-item-description">${escapeHtml(item.description)}</span>` : ""}
       </div>
       <button
         class="btn btn-sm ${state === "buy" ? "btn-primary" : ""}"

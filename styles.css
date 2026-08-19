@@ -1513,6 +1513,11 @@ select {
   opacity: 0.62;
 }
 
+.shop-item.is-bespoke {
+  border-color: rgba(255, 201, 60, 0.55);
+  background: linear-gradient(135deg, rgba(255, 201, 60, 0.12), rgba(255, 90, 95, 0.08)), var(--surface-3);
+}
+
 .shop-thumb {
   display: grid;
   place-items: center;
@@ -1544,6 +1549,41 @@ select {
 
 .shop-item-text small {
   font-size: var(--t-xs);
+  color: var(--ink-muted);
+}
+
+.shop-item-description {
+  margin-top: 2px;
+  font-size: var(--t-xs);
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+.custom-orders {
+  padding: var(--s3);
+  background: rgba(255, 201, 60, 0.08);
+  border: 1px solid rgba(255, 201, 60, 0.28);
+  border-radius: var(--r-md);
+}
+
+.custom-orders ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.custom-orders li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: var(--t-sm);
+}
+
+.custom-orders time {
+  flex: none;
   color: var(--ink-muted);
 }
 
@@ -1961,6 +2001,24 @@ select {
 .dialog-status {
   font-size: var(--t-md);
   color: var(--ink-2);
+}
+
+.dialog-item-description {
+  max-width: 48ch;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.bespoke-order-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  width: min(100%, 440px);
+  text-align: start;
+}
+
+.bespoke-order-form textarea {
+  resize: vertical;
 }
 
 /* ---------- Toasts ---------- */

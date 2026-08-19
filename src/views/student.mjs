@@ -11,6 +11,7 @@ import {
   gearOf,
   icon,
   renderHearts,
+  renderCustomOrders,
   renderLevel,
   renderMoney,
   renderOutBadge,
@@ -136,6 +137,7 @@ export function renderStudentLocker(pupil, ui) {
           <dl class="gear">
             ${gearOf(pupil).map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
           </dl>
+          ${renderCustomOrders(pupil)}
 
           ${isEliminated(pupil)
             ? `<p class="alert alert-danger">You are out of HP. Level up or ask your teacher to restore hit points to get back in the game.</p>`

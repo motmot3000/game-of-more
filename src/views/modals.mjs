@@ -4,13 +4,14 @@
    rien à réinventer.
    ============================================================ */
 
-import { getNextReward, isItemOwned, xpProgress } from "../domain.mjs";
+import { canBuyItem, getNextReward, isItemOwned, xpProgress } from "../domain.mjs";
 import { renderHero, renderItemArt } from "../avatar.mjs";
 import {
   escapeHtml,
   gearOf,
   icon,
   renderHearts,
+  renderCustomOrders,
   renderLevel,
   renderMoney,
   renderOutBadge,
@@ -25,7 +26,8 @@ const TYPE_LABEL = {
   weapon: "Item",
   face: "Face",
   hair: "Hair",
-  title: "Title"
+  title: "Title",
+  bespoke: "Custom"
 };
 
 /* Vue « plein tableau » d'un héros : lecture seule. On montre un élève à
@@ -54,6 +56,7 @@ export function renderPupilDialog(pupil) {
         <dl class="gear">
           ${gearOf(pupil).map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
         </dl>
+        ${renderCustomOrders(pupil)}
         <p class="panel-note">${next
           ? `Level ${next.level} unlocks ${next.rewards.map(escapeHtml).join(", ")}.`
           : "Every reward is unlocked."}</p>
@@ -64,11 +67,18 @@ export function renderPupilDialog(pupil) {
 
 export function renderItemDialog(item, pupil) {
   const field = item.type === "outfit" ? "skin" : item.type;
-  const equipped = pupil[field] === item.id;
+  const bespoke = item.type === "bespoke";
+  const equipped = !bespoke && pupil[field] === item.id;
   const owned = isItemOwned(pupil, item.id);
   const locked = pupil.level < item.minLevel;
 
-  const status = equipped
+  const status = bespoke
+    ? locked
+      ? `Unlocks at level ${item.minLevel}.`
+      : canBuyItem(pupil, item)
+        ? "Ready to order. Describe what should be created."
+        : `Costs ${item.price} coins. You have ${pupil.money}.`
+    : equipped
     ? "Worn right now."
     : owned
       ? "Owned. Equip it whenever you like."
@@ -86,7 +96,18 @@ export function renderItemDialog(item, pupil) {
       <div class="dialog-item-art">${visual}</div>
       <h2>${escapeHtml(item.name)}</h2>
       <p class="panel-note">${TYPE_LABEL[item.type] || "Item"} · level ${item.minLevel} · ${item.price ? `${item.price} coins` : "free"}</p>
+      ${item.description ? `<p class="dialog-item-description">${escapeHtml(item.description)}</p>` : ""}
       <p class="dialog-status">${status}</p>
+      ${bespoke && canBuyItem(pupil, item) ? `
+        <form class="bespoke-order-form" data-action="order-bespoke">
+          <input type="hidden" name="itemId" value="${escapeHtml(item.id)}" />
+          <label class="field">
+            <span>Describe your custom item</span>
+            <textarea name="note" rows="4" required maxlength="500" placeholder="Shape, colors, powers..."></textarea>
+          </label>
+          <button class="btn btn-primary" type="submit">Order for ${item.price} coins</button>
+        </form>
+      ` : ""}
     </dialog>
   `;
 }

@@ -6,7 +6,7 @@
 
 import { SKIN_TONES, getNextReward, getRewardsForLevel, xpProgress } from "../domain.mjs";
 import { renderHero } from "../avatar.mjs";
-import { escapeHtml, gearOf, icon, renderHearts, renderLevel, renderMoney } from "../ui.mjs";
+import { escapeHtml, gearOf, icon, renderCustomOrders, renderHearts, renderLevel, renderMoney } from "../ui.mjs";
 import { renderShop } from "./shop.mjs";
 
 const XP_PRESETS = [
@@ -166,6 +166,7 @@ function renderHeroPanel(pupil, ui, open) {
       <dl class="gear">
         ${gearOf(pupil).map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
       </dl>
+      ${renderCustomOrders(pupil)}
 
       <div class="rewards">
         ${unlocked.length ? unlocked.map((reward) => `<span class="reward-tag">${escapeHtml(reward)}</span>`).join("") : ""}

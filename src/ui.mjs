@@ -103,3 +103,20 @@ export function gearOf(pupil) {
     ["Face", getItemName("face", pupil.face)]
   ];
 }
+
+export function renderCustomOrders(pupil) {
+  if (!pupil.customOrders?.length) return "";
+  return `
+    <section class="custom-orders" aria-label="Custom orders">
+      <h3 class="section-label">Custom orders</h3>
+      <ul>
+        ${pupil.customOrders.map((order) => `
+          <li>
+            <strong>${escapeHtml(order.note)}</strong>
+            <time datetime="${escapeHtml(order.orderedAt)}">${new Date(order.orderedAt).toLocaleDateString("en-GB")}</time>
+          </li>
+        `).join("")}
+      </ul>
+    </section>
+  `;
+}
