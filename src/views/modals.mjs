@@ -8,7 +8,9 @@ import { canBuyItem, getNextReward, isItemOwned, xpProgress } from "../domain.mj
 import { renderHero, renderItemArt } from "../avatar.mjs";
 import {
   escapeHtml,
+  getItemRarity,
   gearOf,
+  heroStageAttributes,
   icon,
   renderHearts,
   renderCustomOrders,
@@ -39,7 +41,7 @@ export function renderPupilDialog(pupil) {
   return `
     <dialog class="dialog dialog-hero ${statusClass(pupil)}" aria-label="${escapeHtml(pupil.name)}">
       <button class="dialog-close" type="button" data-action="close-dialog" aria-label="Close">${icon("close")}</button>
-      <div class="dialog-hero-art">
+      <div class="dialog-hero-art" ${heroStageAttributes(pupil)}>
         ${renderHero(pupil)}
         ${renderOutBadge(pupil)}
       </div>
@@ -86,16 +88,19 @@ export function renderItemDialog(item, pupil) {
         ? `Unlocks at level ${item.minLevel}.`
         : `Costs ${item.price} coins. You have ${pupil.money}.`;
 
-  const visual = item.type === "title"
-    ? `<span class="title-chip title-chip-lg title-${item.id}">${escapeHtml(item.name)}</span>`
-    : renderItemArt(item);
+  const previewPupil = bespoke
+    ? pupil
+    : { ...pupil, [field]: item.id };
+  const visual = bespoke
+    ? renderItemArt(item)
+    : `${renderHero(previewPupil)}${item.type === "title" ? `<span class="preview-title title-${item.id}">${escapeHtml(item.name)}</span>` : ""}`;
 
   return `
     <dialog class="dialog dialog-item" aria-label="${escapeHtml(item.name)}">
       <button class="dialog-close" type="button" data-action="close-dialog" aria-label="Close">${icon("close")}</button>
-      <div class="dialog-item-art">${visual}</div>
+      <div class="dialog-item-art ${bespoke ? "" : "is-hero-preview"}" ${bespoke ? "" : heroStageAttributes(previewPupil)}>${visual}</div>
       <h2>${escapeHtml(item.name)}</h2>
-      <p class="panel-note">${TYPE_LABEL[item.type] || "Item"} · level ${item.minLevel} · ${item.price ? `${item.price} coins` : "free"}</p>
+      <p class="panel-note item-meta"><span class="rarity-label rarity-${getItemRarity(item)}">${getItemRarity(item)}</span>${TYPE_LABEL[item.type] || "Item"} · level ${item.minLevel} · ${item.price ? `${item.price} coins` : "free"}</p>
       ${item.description ? `<p class="dialog-item-description">${escapeHtml(item.description)}</p>` : ""}
       <p class="dialog-status">${status}</p>
       ${bespoke && canBuyItem(pupil, item) ? `

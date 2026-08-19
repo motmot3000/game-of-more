@@ -120,3 +120,19 @@ export function renderCustomOrders(pupil) {
     </section>
   `;
 }
+
+export function heroStageAttributes(pupil) {
+  return `data-outfit="${escapeHtml(pupil.skin || "starter")}" data-gear="${escapeHtml(pupil.weapon || "no-weapon")}"`;
+}
+
+export function getItemRarity(item) {
+  if (item.minLevel >= 8) return "legendary";
+  if (item.minLevel >= 5) return "epic";
+  if (item.minLevel >= 3) return "uncommon";
+  return "common";
+}
+
+export function getItemTier(item) {
+  const tiers = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+  return tiers[Math.min(10, Math.max(1, item.minLevel)) - 1];
+}

@@ -33,6 +33,10 @@
   --rank-dim: rgba(182, 156, 255, 0.16);
   --ok: #3ddc84;
   --ok-dim: rgba(61, 220, 132, 0.16);
+  --rarity-common: #70cff4;
+  --rarity-uncommon: #65d99a;
+  --rarity-epic: #b69cff;
+  --rarity-legendary: #ffd66b;
 
   --action: var(--xp);
   --on-action: #06131f;
@@ -1494,6 +1498,7 @@ select {
 }
 
 .shop-item {
+  --item-accent: var(--rarity-common);
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
@@ -1503,6 +1508,11 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
+
+.shop-item.rarity-uncommon { --item-accent: var(--rarity-uncommon); }
+.shop-item.rarity-epic { --item-accent: var(--rarity-epic); }
+.shop-item.rarity-legendary { --item-accent: var(--rarity-legendary); }
+.shop-item:hover { border-color: color-mix(in srgb, var(--item-accent) 65%, var(--line)); }
 
 .shop-item.is-equipped {
   border-color: var(--ok);
@@ -1519,6 +1529,7 @@ select {
 }
 
 .shop-thumb {
+  position: relative;
   display: grid;
   place-items: center;
   height: 56px;
@@ -1527,6 +1538,20 @@ select {
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   cursor: pointer;
+}
+
+.item-tier {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 18px;
+  padding: 2px 4px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--on-action);
+  background: var(--item-accent);
+  border-radius: 4px;
 }
 
 .shop-thumb .item-art {
@@ -1984,6 +2009,7 @@ select {
 }
 
 .dialog-item-art {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 200px;
@@ -1991,6 +2017,78 @@ select {
   background: var(--surface-3);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
+}
+
+.dialog-item-art.is-hero-preview {
+  width: min(100%, 320px);
+  height: min(52vh, 380px);
+  padding: var(--s2) var(--s4) 0;
+  overflow: hidden;
+}
+
+.dialog-item-art.is-hero-preview .avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-title {
+  position: absolute;
+  left: 50%;
+  bottom: var(--s3);
+  transform: translateX(-50%);
+  min-width: max-content;
+  padding: var(--s2) var(--s3);
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--money);
+  background: rgba(10, 18, 32, 0.9);
+  border: 1px solid rgba(255, 201, 60, 0.5);
+  border-radius: var(--r-sm);
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+}
+
+.rarity-label {
+  padding: 3px 7px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-action);
+  background: var(--rarity-common);
+  border-radius: 4px;
+}
+
+.rarity-label.rarity-uncommon { background: var(--rarity-uncommon); }
+.rarity-label.rarity-epic { background: var(--rarity-epic); }
+.rarity-label.rarity-legendary { background: var(--rarity-legendary); }
+
+:is(.hero-card-art, .row-art, .hero-sheet-art, .locker-art, .dialog-hero-art, .dialog-item-art)[data-outfit="vocab-ranger"] {
+  background: radial-gradient(65% 52% at 50% 88%, rgba(61, 220, 132, 0.28), transparent 72%), linear-gradient(160deg, #193b3b, #0d2131 64%);
+}
+
+:is(.hero-card-art, .row-art, .hero-sheet-art, .locker-art, .dialog-hero-art, .dialog-item-art)[data-outfit="grammar-mage"],
+:is(.hero-card-art, .row-art, .hero-sheet-art, .locker-art, .dialog-hero-art, .dialog-item-art)[data-outfit="grand-archmage"] {
+  background: radial-gradient(58% 48% at 50% 44%, rgba(182, 156, 255, 0.25), transparent 74%), linear-gradient(160deg, #30274f, #101d35 68%);
+}
+
+:is(.hero-card-art, .row-art, .hero-sheet-art, .locker-art, .dialog-hero-art, .dialog-item-art)[data-outfit="story-keeper"],
+:is(.hero-card-art, .row-art, .hero-sheet-art, .locker-art, .dialog-hero-art, .dialog-item-art)[data-outfit="realm-sovereign"] {
+  background: radial-gradient(64% 50% at 50% 84%, rgba(255, 201, 60, 0.25), transparent 72%), linear-gradient(160deg, #462c36, #132039 68%);
+}
+
+:is(.hero-card-art, .row-art, .hero-sheet-art, .locker-art, .dialog-hero-art, .dialog-item-art)[data-outfit="honor-knight"] {
+  background: radial-gradient(64% 50% at 50% 84%, rgba(112, 207, 244, 0.22), transparent 72%), linear-gradient(160deg, #223b5c, #101d35 68%);
+}
+
+.hero-fx {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .dialog-item-art .item-art {

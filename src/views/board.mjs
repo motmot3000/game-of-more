@@ -8,6 +8,7 @@ import { isEliminated } from "../domain.mjs";
 import { renderHero } from "../avatar.mjs";
 import {
   escapeHtml,
+  heroStageAttributes,
   icon,
   renderHearts,
   renderLevel,
@@ -135,7 +136,7 @@ function renderCard(pupil, selected) {
         ${renderLevel(pupil.level)}
       </header>
 
-      <div class="hero-card-art">
+      <div class="hero-card-art" ${heroStageAttributes(pupil)}>
         ${renderHero(pupil)}
         ${renderOutBadge(pupil)}
         <button
@@ -175,7 +176,7 @@ function renderRow(pupil, selected) {
         aria-label="Select ${escapeHtml(pupil.name)}"
       ></button>
       <span class="row-check" aria-hidden="true">${icon("check")}</span>
-      <div class="row-art">${renderHero(pupil)}</div>
+      <div class="row-art" ${heroStageAttributes(pupil)}>${renderHero(pupil)}</div>
       <h3 class="row-name">${escapeHtml(pupil.name)}</h3>
       ${renderLevel(pupil.level)}
       ${renderHearts(pupil)}

@@ -21,7 +21,7 @@
    son bord APRÈS.
    ============================================================ */
 
-export const INK = "#2A2119";
+export const INK = "#241D19";
 
 const TONES = {
   light:  { base: "#F0C9A4", dark: "#D5A47C", lite: "#FBDDC0", line: "#8A5C3C" },
@@ -38,7 +38,7 @@ const HAIR = { base: "#402D1D", dark: "#291C11", lite: "#5F4530", line: "#1B1209
 const CLOTHS = {
   /* Lin brut pour la tenue de départ : humble, et surtout ça se détache du
      fond bleu nuit — l'azur s'y noyait, or c'est la tenue de tous les LVL 1. */
-  lin:      { base: "#A8865A", dark: "#846741", lite: "#C4A377", line: "#4E3A22" },
+  lin:      { base: "#536776", dark: "#3C4D59", lite: "#738796", line: "#26353F" },
   azur:     { base: "#33507E", dark: "#223757", lite: "#4A6A99", line: "#152036" },
   sinople:  { base: "#2F5C43", dark: "#20422F", lite: "#427659", line: "#132B1E" },
   pourpre:  { base: "#573566", dark: "#3C2449", lite: "#714C81", line: "#25142B" },
@@ -54,6 +54,16 @@ const GOLD    = { base: "#C0913E", dark: "#8F692A", lite: "#E2BC70", line: "#5A3
 const LEATHER = { base: "#6B4A2E", dark: "#4A3220", lite: "#8A6440", line: "#2A1B10" };
 const HOSE    = { base: "#5A4C3E", dark: "#40352A", lite: "#75654F", line: "#241D15" };
 const WOOD    = { base: "#7A5A38", dark: "#573F26", lite: "#96754C", line: "#2E2013" };
+
+const MATERIAL_LINES = new Map();
+for (const material of [
+  ...Object.values(TONES), HAIR, ...Object.values(CLOTHS), CLOAK,
+  MAIL, STEEL, GOLD, LEATHER, HOSE, WOOD
+]) {
+  for (const color of [material.base, material.dark, material.lite]) {
+    MATERIAL_LINES.set(color, material.line);
+  }
+}
 
 /* Traduction du modèle de données de l'app vers la garde-robe.
    Chaque tenue n'est qu'un jeu d'options : la silhouette ne change jamais,
@@ -122,8 +132,8 @@ function attrs(a) {
 
 function draw(s, stroke) {
   if (s.noStroke) return `<${s.tag} ${attrs(s.a)} fill="${s.fill}"/>`;
-  const sc = s.stroke || INK;
-  return `<${s.tag} ${attrs(s.a)} fill="${s.fill}" stroke="${sc}" stroke-width="${s.sw || stroke}" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const sc = s.stroke || (String(s.fill).startsWith("url(") ? MAIL.line : MATERIAL_LINES.get(s.fill)) || INK;
+  return `<${s.tag} ${attrs(s.a)} fill="${s.fill}" stroke="${sc}" stroke-width="${s.sw || stroke}" stroke-opacity="0.94" stroke-linejoin="round" stroke-linecap="round"/>`;
 }
 
 function clipGeom(s) {
@@ -175,12 +185,27 @@ function heroShapes(opt) {
     S.push(fold("M44,300 C74,312 126,312 156,300", CLOAK.lite, 1.4, 0.35));
   }
 
-  /* --- bras arrière, légèrement plié : la main près de la hanche donne une
-         attitude sûre sans transformer le héros en adulte martial. */
-  S.push(p("M67,108 C56,111 48,119 44,132 L52,157 L66,149 L72,121 Z", sleeve));
-  S.push(p("M48,150 L64,144 L70,158 L54,165 Z", LEATHER.dark));
-  S.push(fold("M52,153 L63,149", LEATHER.line, 1.4, 0.55));
-  S.push(p("M55,162 C60,160 66,164 70,170 L76,178 C78,182 75,187 70,188 C66,189 63,185 62,181 L56,174 C52,170 51,165 55,162 Z", T.dark));
+  /* --- bras arrière : sans objet il tombe naturellement; avec équipement,
+         il se replie pour tenir le bouclier ou stabiliser la posture. */
+  if (hand === "none") {
+    S.push(p("M68,107 C57,109 50,117 47,130 C45,141 46,154 48,166 L63,168 C64,155 64,143 64,133 C65,126 69,121 74,119 Z", sleeve));
+    S.push(fold("M53,122 C49,136 51,151 54,163", C.line, 1.25, 0.42));
+    S.push(p("M47,161 C52,164 58,164 64,161 L65,176 C60,179 53,179 48,176 Z", LEATHER.dark));
+    S.push(fold("M50,169 C54,171 60,171 63,169", LEATHER.lite, 1.2, 0.5));
+    S.push(p("M50,174 C53,172 60,173 62,176 L63,187 L62,201 C61,206 58,209 55,209 C51,209 48,206 48,201 L49,187 L47,181 C46,178 47,176 50,174 Z", T.dark));
+    S.push(fold("M52,190 L52,204", T.line, 0.95, 0.56));
+    S.push(fold("M56,189 L56,206", T.line, 0.95, 0.5));
+    S.push(fold("M60,188 L60,202", T.line, 0.9, 0.44));
+    S.push(p("M49,178 C45,178 43,182 45,185 C46,187 49,186 51,184 Z", T.dark, { sw: 1.25 }));
+  } else {
+    S.push(p("M68,107 C57,109 49,116 45,128 C42,137 46,148 51,157 L65,151 C62,144 60,137 62,131 C64,125 69,121 74,119 Z", sleeve));
+    S.push(fold("M51,124 C48,133 51,143 56,151", C.line, 1.25, 0.42));
+    S.push(p("M49,152 L64,146 L70,158 L55,166 Z", LEATHER.dark));
+    S.push(fold("M53,155 L64,151", LEATHER.lite, 1.3, 0.5));
+    S.push(p("M56,163 C60,160 65,161 68,165 L73,174 L78,178 C81,181 81,185 78,188 C75,191 70,190 68,187 L64,182 L60,178 C56,175 53,170 54,167 C54,165 55,164 56,163 Z", T.dark));
+    S.push(fold("M69,176 C72,178 75,180 78,181", T.line, 1.15, 0.6));
+    S.push(fold("M66,181 C69,184 72,185 75,185", T.line, 1.05, 0.46));
+  }
 
   /* --- chausses. Sans grèves la botte s'arrête au mollet : une tige qui
          monte au genou lit comme une cuissarde, pas comme un aventurier. */
@@ -336,25 +361,48 @@ function heroShapes(opt) {
   H.push(...headgearShapes(head));
   S.push(...H.map((shape) => ({
     ...shape,
-    a: { ...shape.a, transform: `${shape.a.transform || ""} translate(-16 -9) scale(1.16)`.trim() }
+    a: { ...shape.a, transform: `${shape.a.transform || ""} translate(-8 -4) scale(1.08)`.trim() }
   })));
 
-  /* --- bras avant, détaché du torse : il porte l'objet au lieu de pendre. */
-  S.push(p("M133,109 C145,112 154,121 157,135 L153,183 C152,192 143,195 137,188 L135,137 Z", sleeve));
-  S.push(p("M136,178 L154,178 L154,193 L137,194 Z", LEATHER.base));
-  S.push(fold("M140,185 L151,184", LEATHER.line, 1.3, 0.55));
+  /* La paume du bras arrière repose SUR la ceinture. Le bras reste derrière
+     le torse, mais cette dernière petite forme doit passer au premier plan. */
+  if (hand === "sword" || hand === "staff") {
+    S.push(p("M66,176 C68,172 73,171 77,174 L79,187 C76,190 70,190 67,186 C65,183 64,179 66,176 Z", T.dark));
+    S.push(p("M74,174 L84,174 C87,174 87,178 84,179 L75,179 Z", T.dark, { sw: 1.1 }));
+    S.push(p("M75,179 L85,179 C88,179 88,183 85,184 L75,184 Z", T.dark, { sw: 1.1 }));
+    S.push(p("M75,184 L83,184 C86,184 86,188 83,189 L75,189 Z", T.dark, { sw: 1.1 }));
+    S.push(fold("M76,179 L84,179", T.line, 0.85, 0.55));
+    S.push(fold("M76,184 L84,184", T.line, 0.85, 0.48));
+  }
+
+  /* --- bras avant : main libre repliée vers la ceinture, bras porteur plus
+         vertical. Cette différence de pose rend l'équipement lisible. */
+  const gripping = hand !== "none" && hand !== "shield";
+  if (gripping) {
+    S.push(p("M132,108 C144,109 152,116 156,127 C160,138 158,151 156,162 L154,178 C152,185 143,188 137,181 C135,174 136,164 136,154 L134,135 C133,127 130,118 132,108 Z", sleeve));
+    S.push(fold("M147,119 C153,131 153,146 150,161", C.line, 1.25, 0.4));
+    S.push(p("M136,176 C141,178 149,178 155,175 L155,191 C150,194 143,195 137,192 Z", LEATHER.base));
+    S.push(fold("M140,184 C144,186 150,185 153,183", LEATHER.lite, 1.3, 0.55));
+  } else {
+    S.push(p("M132,108 C144,109 153,117 156,129 C159,140 155,151 148,160 L134,177 L121,164 C127,157 134,150 138,143 C141,136 138,127 133,121 Z", sleeve));
+    S.push(fold("M148,121 C153,133 151,145 144,154", C.line, 1.25, 0.42));
+    S.push(p("M120,160 L136,173 L129,185 L113,172 Z", LEATHER.base));
+    S.push(fold("M119,167 L130,177", LEATHER.lite, 1.3, 0.55));
+  }
 
   if (hand === "staff") {
-    S.push(p("M143,88 L152,88 L156,362 L147,362 Z", WOOD.base));
-    S.push(fold("M146,110 C147,190 149,280 150,352", WOOD.line, 1.4, 0.5));
-    S.push(p("M142,120 L153,120 L153,132 L142,132 Z", LEATHER.dark));
+    S.push(p("M145,88 L153,88 L155,362 L147,362 Z", WOOD.base));
+    S.push(fold("M148,110 C148,190 150,280 150,352", WOOD.line, 1.3, 0.55));
+    S.push(p("M143,120 L154,120 L154,132 L143,132 Z", LEATHER.dark));
     S.push(p("M136,74 C136,60 158,60 158,74 C158,86 148,92 147,92 C146,92 136,86 136,74 Z", GOLD.dark));
     S.push(c(147, 72, 12, "#7FC7D9"));
     S.push(c(143, 68, 4, "#DCF3F8", { noStroke: true }));
   }
 
-  S.push(c(147, 204, 11, T.base));
-  S.push(fold("M140,201 C144,198 150,198 154,201", T.line, 1.4, 0.55));
+  if (gripping && hand !== "sword" && hand !== "staff") {
+    S.push(c(147, 204, 10, T.base));
+    S.push(fold("M140,201 C144,198 150,198 154,201", T.line, 1.3, 0.55));
+  }
 
   if (hand === "sword") {
     S.push(p("M141,222 L149,222 L149,194 L141,194 Z", LEATHER.dark));
@@ -395,6 +443,31 @@ function heroShapes(opt) {
     S.push(p("M134,178 L158,178 L146,204 Z", GOLD.dark));
     S.push(c(146, 178, 6.5, "#FF5A5F"));
     S.push(c(146, 178, 2.5, "#FFF6E6", { noStroke: true }));
+  }
+
+  if (hand === "sword") {
+    S.push(p("M137,194 C139,191 143,190 147,192 L149,209 C147,213 141,214 138,210 C136,206 135,198 137,194 Z", T.base));
+    S.push(p("M145,194 L153,194 C156,194 156,198 153,199 L146,199 Z", T.base, { sw: 1.25 }));
+    S.push(p("M146,199 L154,199 C157,199 157,203 154,204 L146,204 Z", T.base, { sw: 1.25 }));
+    S.push(p("M146,204 L153,204 C156,204 156,208 153,209 L146,209 Z", T.base, { sw: 1.25 }));
+    S.push(fold("M147,199 L152,199", T.line, 0.9, 0.55));
+    S.push(fold("M147,204 L153,204", T.line, 0.9, 0.5));
+    S.push(p("M138,195 C134,196 132,200 134,203 C136,205 139,204 141,202 Z", T.dark, { sw: 1.3 }));
+  } else if (hand === "staff") {
+    S.push(p("M138,193 C140,190 145,190 148,192 L150,210 C147,214 141,214 138,210 C136,206 135,197 138,193 Z", T.base));
+    S.push(p("M146,193 L154,193 C158,193 158,197 155,198 L146,198 Z", T.base, { sw: 1.25 }));
+    S.push(p("M146,198 L155,198 C158,198 158,202 155,203 L146,203 Z", T.base, { sw: 1.25 }));
+    S.push(p("M146,203 L155,203 C158,203 158,207 155,208 L146,208 Z", T.base, { sw: 1.25 }));
+    S.push(p("M146,208 L153,208 C156,208 156,212 153,213 L146,213 Z", T.base, { sw: 1.25 }));
+    S.push(fold("M147,198 L154,198", T.line, 0.9, 0.55));
+    S.push(fold("M147,203 L154,203", T.line, 0.9, 0.5));
+    S.push(fold("M147,208 L153,208", T.line, 0.9, 0.44));
+    S.push(p("M138,194 C134,195 132,199 134,202 C136,204 139,203 141,201 Z", T.dark, { sw: 1.3 }));
+  } else {
+    S.push(p("M114,169 C118,167 123,169 127,173 L132,178 C135,181 135,185 132,188 C129,191 124,190 121,187 L116,183 C112,181 109,177 110,174 C110,172 112,170 114,169 Z", T.base));
+    S.push(fold("M119,174 C122,177 126,180 130,181", T.line, 1, 0.58));
+    S.push(fold("M116,178 C120,181 124,184 128,185", T.line, 0.95, 0.5));
+    S.push(p("M113,170 C109,169 106,172 107,175 C108,178 112,178 115,176 Z", T.dark, { sw: 1.3 }));
   }
 
   return S;
@@ -583,10 +656,10 @@ function hairShapes(cut, head, girl) {
 
 function faceShapes(face, girl, T) {
   const S = [];
-  const brow = (x, dir) => p(`M${x - 5.5},44.5 Q${x},${41.8 + dir} ${x + 5.5},44.5`, "none", { sw: 2, stroke: HAIR.dark });
+  const brow = (x, dir) => p(`M${x - 5},44.5 Q${x},${42.2 + dir} ${x + 5},44.5`, "none", { sw: 1.65, stroke: HAIR.dark });
   const eye = (x) => [
-    e(x, 52, 3.45, 4.15, INK, { noStroke: true }),
-    c(x + 1.25, 50.3, 1.35, "#FFFFFF", { noStroke: true })
+    e(x, 52, 2.8, 3.35, INK, { noStroke: true }),
+    c(x + 1, 50.7, 0.9, "#FFFFFF", { noStroke: true })
   ];
   const lashes = girl
     ? [p("M86,48.5 L83.5,46.3", "none", { sw: 1.45, stroke: INK }),
@@ -594,10 +667,14 @@ function faceShapes(face, girl, T) {
     : [];
 
   if (face === "cool") {
-    /* Regard déterminé + cicatrice : l'équivalent aventurier du « cool ». */
-    S.push(p("M86.5,52 L97.5,52", "none", { sw: 3.6, stroke: INK }));
-    S.push(p("M102.5,52 L113.5,52", "none", { sw: 3.6, stroke: INK }));
-    S.push(brow(92, -2), brow(108, -2));
+    /* Regard déterminé, mais toujours vivant : iris aplatis et sourcils
+       inclinés plutôt que deux traits qui donnent l'impression d'yeux fermés. */
+    S.push(e(92, 52.5, 3.1, 2.45, INK, { noStroke: true }));
+    S.push(e(108, 52.5, 3.1, 2.45, INK, { noStroke: true }));
+    S.push(c(93, 51.7, 0.8, "#FFFFFF", { noStroke: true }));
+    S.push(c(109, 51.7, 0.8, "#FFFFFF", { noStroke: true }));
+    S.push(p("M87,43 L97,45.5", "none", { sw: 1.8, stroke: HAIR.dark }));
+    S.push(p("M103,45.5 L113,43", "none", { sw: 1.8, stroke: HAIR.dark }));
     S.push(p("M114,42 L111,60", "none", { sw: 1.6, stroke: T.line }));
   } else if (face === "wink") {
     S.push(p("M86.5,52 Q92,55.5 97.5,52", "none", { sw: 2.6, stroke: INK }));
@@ -714,7 +791,7 @@ function headgearShapes(head) {
 
 function renderFigure(opt) {
   const S = heroShapes(opt);
-  const stroke = opt.stroke ?? 2.2;
+  const stroke = opt.stroke ?? 1.7;
   const id = opt.id;
 
   /* La maille est une trame, pas un aplat : c'est ce détail qui fait
@@ -725,27 +802,60 @@ function renderFigure(opt) {
       <circle cx="4.5" cy="4.5" r="1.6" fill="none" stroke="${MAIL.dark}" stroke-width="1"/>
       <circle cx="4.5" cy="1.5" r="1.6" fill="none" stroke="${MAIL.lite}" stroke-width="0.7"/>
       <circle cx="1.5" cy="4.5" r="1.6" fill="none" stroke="${MAIL.lite}" stroke-width="0.7"/>
-    </pattern></defs>`;
+    </pattern>
+    <linearGradient id="light-${id}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF8EA" stop-opacity=".20"/>
+      <stop offset=".42" stop-color="#FFF8EA" stop-opacity="0"/>
+      <stop offset="1" stop-color="#120D0A" stop-opacity=".24"/>
+    </linearGradient>
+    <radialGradient id="depth-${id}" cx="48%" cy="25%" r="76%">
+      <stop offset=".54" stop-color="#120D0A" stop-opacity="0"/>
+      <stop offset="1" stop-color="#120D0A" stop-opacity=".16"/>
+    </radialGradient></defs>`;
 
   const body = S.map((s) => draw(s, stroke)).join("");
 
   const shading = `
     <clipPath id="clip-${id}">${S.filter((s) => s.fill !== "none").map(clipGeom).join("")}</clipPath>
     <g clip-path="url(#clip-${id})">
-      <path d="M112,0 L200,0 L200,390 L94,390 Z" fill="#160F0B" opacity="0.20"/>
-      <path d="M0,0 L58,0 L44,390 L0,390 Z" fill="#FFF6E6" opacity="0.20"/>
-      <rect x="0" y="262" width="200" height="128" fill="#160F0B" opacity="0.13"/>
+      <rect width="200" height="390" fill="url(#light-${id})"/>
+      <rect width="200" height="390" fill="url(#depth-${id})"/>
     </g>`;
 
   const ground = opt.ground === false ? ""
     : `<ellipse cx="100" cy="348" rx="58" ry="8" fill="${INK}" opacity="0.18"/>`;
 
-  const mirrored = opt.mirror ? "translate(200 0) scale(-1 1)" : "";
-  const figure = `<g transform="${mirrored}"><g transform="translate(-8 8) scale(1.08 0.91)">${body}${shading}</g></g>`;
+  const atmosphere = opt.ground === false ? "" : roleAtmosphere(opt.role);
 
-  return `<svg class="${opt.cls || "avatar"}" viewBox="${opt.viewBox || "0 0 200 360"}" role="img" aria-label="${opt.alt || "hero"}">
-    ${defs}${ground}${figure}
+  const mirrored = opt.mirror ? "translate(200 0) scale(-1 1)" : "";
+  const figure = `<g transform="${mirrored}"><g transform="translate(-3 2) scale(1.03 0.96)">${body}${shading}</g></g>`;
+
+  return `<svg class="${opt.cls || "avatar"}" data-role="${opt.role || "scout"}" viewBox="${opt.viewBox || "0 0 200 360"}" role="img" aria-label="${opt.alt || "hero"}">
+    ${defs}${atmosphere}${ground}${figure}
   </svg>`;
+}
+
+function roleAtmosphere(role) {
+  if (role === "ranger") {
+    return `<g class="hero-fx hero-fx-ranger" fill="#7BCB9B" stroke="none">
+      <path d="M29 152 Q40 145 45 157 Q34 161 29 152Z" opacity=".28"/>
+      <path d="M167 221 Q177 215 182 226 Q171 229 167 221Z" opacity=".22"/>
+    </g>`;
+  }
+  if (role === "mage") {
+    return `<g class="hero-fx hero-fx-mage" fill="none" stroke="#C7B8FF" stroke-linecap="round">
+      <path d="M39 194 C27 181 28 164 39 152" opacity=".20" stroke-width="1.5"/>
+      <circle cx="35" cy="146" r="2.8" fill="#D9CCFF" stroke="none" opacity=".52"/>
+      <circle cx="166" cy="205" r="3.4" fill="#8FDDF0" stroke="none" opacity=".42"/>
+    </g>`;
+  }
+  if (role === "keeper") {
+    return `<g class="hero-fx hero-fx-keeper" fill="none" stroke="#FFE58A">
+      <circle cx="100" cy="176" r="82" opacity=".10" stroke-width="1.5"/>
+      <circle cx="100" cy="176" r="70" opacity=".06" stroke-width="1"/>
+    </g>`;
+  }
+  return "";
 }
 
 /* ---------- API publique ---------- */
@@ -763,7 +873,7 @@ export function renderHero(pupil) {
     girl: pupil.gender === "girl",
     mirror: mirrorFor(pupil.id),
     alt: `${pupil.name || "hero"} the hero`,
-    cls: `avatar ${pupil.skin === "grammar-mage" ? "magic" : ""}`
+    cls: `avatar hero-${outfit.role} ${pupil.skin === "grammar-mage" ? "magic" : ""}`
   });
 }
 
@@ -785,10 +895,10 @@ const ITEM_CROPS = {
   "astral-scepter": "120 40 60 180",
   "wisdom-relic": "116 130 64 90",
   "custom-bespoke": "40 40 120 120",
-  short: "68 6 64 64",
-  long: "60 6 80 152",
-  curly: "60 2 80 64",
-  spiky: "62 0 76 68",
+  short: "68 4 64 84",
+  long: "60 2 80 144",
+  curly: "60 0 80 88",
+  spiky: "62 0 76 90",
   ponytail: "60 2 80 80",
   braided: "60 2 80 100",
   flowing: "58 2 84 140",

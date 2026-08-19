@@ -6,7 +6,7 @@
 
 import { SKIN_TONES, getNextReward, getRewardsForLevel, xpProgress } from "../domain.mjs";
 import { renderHero } from "../avatar.mjs";
-import { escapeHtml, gearOf, icon, renderCustomOrders, renderHearts, renderLevel, renderMoney } from "../ui.mjs";
+import { escapeHtml, gearOf, heroStageAttributes, icon, renderCustomOrders, renderHearts, renderLevel, renderMoney } from "../ui.mjs";
 import { renderShop } from "./shop.mjs";
 
 const XP_PRESETS = [
@@ -150,7 +150,7 @@ function renderHeroPanel(pupil, ui, open) {
       <summary>${icon("user")}<span>${escapeHtml(pupil.name)}</span></summary>
 
       <div class="hero-sheet">
-        <button class="hero-sheet-art" type="button" data-action="zoom-pupil" data-pupil-id="${pupil.id}" aria-label="Show ${escapeHtml(pupil.name)} full size">
+        <button class="hero-sheet-art" type="button" data-action="zoom-pupil" data-pupil-id="${pupil.id}" aria-label="Show ${escapeHtml(pupil.name)} full size" ${heroStageAttributes(pupil)}>
           ${renderHero(pupil)}
         </button>
         <div class="hero-sheet-facts">

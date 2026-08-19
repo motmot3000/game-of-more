@@ -6,7 +6,7 @@
 
 import { canBuyItem, getShopItems, isItemOwned } from "../domain.mjs";
 import { renderItemArt } from "../avatar.mjs";
-import { escapeHtml, renderMoney } from "../ui.mjs";
+import { escapeHtml, getItemRarity, getItemTier, renderMoney } from "../ui.mjs";
 
 export const SHOP_CATEGORIES = [
   { type: "outfit", label: "Outfits" },
@@ -97,14 +97,14 @@ function renderShopItem(item, pupil) {
       : "Free";
 
   return `
-    <article class="shop-item ${bespoke ? "is-bespoke" : ""} ${equipped ? "is-equipped" : ""} ${locked ? "is-locked" : ""}">
+    <article class="shop-item rarity-${getItemRarity(item)} ${bespoke ? "is-bespoke" : ""} ${equipped ? "is-equipped" : ""} ${locked ? "is-locked" : ""}">
       <button
         class="shop-thumb"
         type="button"
         data-action="preview-item"
         data-item-id="${item.id}"
         aria-label="Preview ${escapeHtml(item.name)}"
-      >${renderThumb(item)}</button>
+      >${renderThumb(item)}<span class="item-tier" aria-hidden="true">${getItemTier(item)}</span></button>
       <div class="shop-item-text">
         <strong>${escapeHtml(item.name)}</strong>
         <small>${meta}</small>

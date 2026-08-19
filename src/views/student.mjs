@@ -9,6 +9,7 @@ import { renderHero } from "../avatar.mjs";
 import {
   escapeHtml,
   gearOf,
+  heroStageAttributes,
   icon,
   renderHearts,
   renderCustomOrders,
@@ -85,7 +86,7 @@ function renderPickCard(pupil) {
         <h3>${escapeHtml(pupil.name)}</h3>
         ${renderLevel(pupil.level)}
       </header>
-      <div class="hero-card-art">
+      <div class="hero-card-art" ${heroStageAttributes(pupil)}>
         ${renderHero(pupil)}
         ${renderOutBadge(pupil)}
       </div>
@@ -106,7 +107,7 @@ export function renderStudentLocker(pupil, ui) {
   return `
     <section class="student-view locker ${statusClass(pupil)}">
       <div class="locker-hero">
-        <div class="locker-art">
+        <div class="locker-art" ${heroStageAttributes(pupil)}>
           ${renderHero(pupil)}
           ${renderOutBadge(pupil)}
         </div>
