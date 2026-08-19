@@ -882,6 +882,90 @@ body {
 }
 .title-badge.big { font-size: 16px; padding: 12px 22px; }
 
+.shop-item.bespoke-card {
+  border-color: #e2bc70;
+  background: linear-gradient(135deg, rgba(226, 188, 112, 0.12), rgba(142, 50, 48, 0.1));
+  box-shadow: 0 0 12px rgba(226, 188, 112, 0.15);
+}
+
+.shop-item-desc {
+  font-size: 11px;
+  color: var(--ink-2);
+  margin: 4px 0 0 0;
+  line-height: 1.3;
+}
+
+.bespoke-modal {
+  border: 1px solid #e2bc70;
+  box-shadow: 0 0 24px rgba(226, 188, 112, 0.25);
+}
+
+.bespoke-order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.bespoke-order-form input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2bc70;
+  background: var(--panel-3);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.bespoke-order-form button {
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #c0913e, #8f692a);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.custom-orders-box {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 9px;
+  background: rgba(226, 188, 112, 0.08);
+  border: 1px solid rgba(226, 188, 112, 0.25);
+}
+
+.custom-orders-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #e2bc70;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.custom-orders-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-orders-list li {
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--ink);
+}
+
+.custom-orders-list small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
 /* ---------- Activité ---------- */
 
 .events { display: flex; flex-direction: column; gap: 4px; }

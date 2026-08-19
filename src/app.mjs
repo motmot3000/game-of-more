@@ -35,7 +35,7 @@ import {
   renderCoinIcon,
   renderHeartIcon,
   renderMascot
-} from "./avatar.mjs";
+} from "./avatar.mjs?v=3";
 
 const app = document.querySelector("#app");
 const toasts = document.querySelector("#toasts");
@@ -63,7 +63,8 @@ const SHOP_CATEGORIES = [
   { type: "weapon", label: "Items" },
   { type: "face", label: "Faces" },
   { type: "hair", label: "Hair" },
-  { type: "title", label: "Titles" }
+  { type: "title", label: "Titles" },
+  { type: "bespoke", label: "Sur mesure ⭐" }
 ];
 
 window.addEventListener("storage", (event) => {
@@ -335,6 +336,7 @@ function renderStudentLocker(pupil) {
           <dl class="gear-list">
             ${gear.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
           </dl>
+          ${renderCustomOrders(pupil)}
           ${isEliminated(pupil) ? `<p class="locker-warning">You are out of HP! Level up to get back in the game.</p>` : ""}
           <p class="muted next-reward">${next
             ? `Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}`
@@ -631,6 +633,7 @@ function renderSelectedPupil(pupil) {
       </div>
 
       ${renderRewards(pupil)}
+      ${renderCustomOrders(pupil)}
 
       <button class="danger" type="button" data-action="remove-pupil">Remove student</button>
     </details>
@@ -639,6 +642,23 @@ function renderSelectedPupil(pupil) {
       <summary>Hero shop</summary>
       ${renderShop(pupil)}
     </details>
+  `;
+}
+
+function renderCustomOrders(pupil) {
+  if (!pupil.customOrders || pupil.customOrders.length === 0) return "";
+  return `
+    <div class="custom-orders-box">
+      <h4>⭐ Items sur mesure commandés (${pupil.customOrders.length})</h4>
+      <ul class="custom-orders-list">
+        ${pupil.customOrders.map((order) => `
+          <li>
+            <strong>"${escapeHtml(order.note)}"</strong>
+            <small>${new Date(order.orderedAt).toLocaleDateString("fr-CH")}</small>
+          </li>
+        `).join("")}
+      </ul>
+    </div>
   `;
 }
 
@@ -684,20 +704,25 @@ function renderShopItem(item, pupil) {
   const affordable = canBuyItem(pupil, item);
   let label = "Buy";
   let disabled = "";
-  if (equipped) { label = "Equipped"; disabled = "disabled"; }
+  if (item.type === "bespoke") {
+    if (locked) { label = `LVL ${item.minLevel}`; disabled = "disabled"; }
+    else if (!affordable) { label = `${item.price} money`; disabled = "disabled"; }
+    else label = `Commander (${item.price})`;
+  } else if (equipped) { label = "Equipped"; disabled = "disabled"; }
   else if (owned) label = "Equip";
   else if (locked) { label = `LVL ${item.minLevel}`; disabled = "disabled"; }
   else if (!affordable) { label = `${item.price} money`; disabled = "disabled"; }
   else label = `Buy ${item.price}`;
 
   return `
-    <article class="shop-item ${equipped ? "equipped" : ""} ${locked ? "locked" : ""}">
+    <article class="shop-item ${item.type === "bespoke" ? "bespoke-card" : ""} ${equipped ? "equipped" : ""} ${locked ? "locked" : ""}">
       <button class="shop-thumb-button" type="button" data-action="preview-item" data-item-id="${item.id}" aria-label="Preview ${escapeHtml(item.name)}">
         ${renderItemThumb(item)}
       </button>
       <div class="shop-item-info">
         <strong>${escapeHtml(item.name)}</strong>
         <small>LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</small>
+        ${item.description ? `<p class="shop-item-desc">${escapeHtml(item.description)}</p>` : ""}
       </div>
       <button type="button" data-action="shop-item" data-item-id="${item.id}" ${disabled}>${label}</button>
     </article>
@@ -712,18 +737,20 @@ function renderItemThumb(item) {
 }
 
 function renderItemModal(item, pupil) {
-  const typeLabel = { outfit: "Outfit", hat: "Hat", weapon: "Item", face: "Face", hair: "Hair", title: "Title" }[item.type] || "Item";
+  const typeLabel = { outfit: "Outfit", hat: "Hat", weapon: "Item", face: "Face", hair: "Hair", title: "Title", bespoke: "Sur mesure" }[item.type] || "Item";
   const field = item.type === "outfit" ? "skin" : item.type;
   const equipped = pupil[field] === item.id;
   const owned = isItemOwned(pupil, item.id);
   const locked = pupil.level < item.minLevel;
-  const status = equipped
-    ? "Equipped"
-    : owned
-      ? "Owned"
-      : locked
-        ? `Unlocks at LVL ${item.minLevel}`
-        : "Available to buy";
+  const status = item.type === "bespoke"
+    ? (locked ? `Débloqué au LVL ${item.minLevel}` : (pupil.money < item.price ? `Nécessite ${item.price} money (vous en avez ${pupil.money})` : "Disponible à la commande !"))
+    : (equipped
+      ? "Equipped"
+      : owned
+        ? "Owned"
+        : locked
+          ? `Unlocks at LVL ${item.minLevel}`
+          : "Available to buy");
 
   const visual = item.type === "title"
     ? `<div class="preview-stage"><span class="title-badge big title-${item.id}">${escapeHtml(item.name)}</span></div>`
@@ -731,12 +758,19 @@ function renderItemModal(item, pupil) {
 
   return `
     <div class="modal-backdrop">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(item.name)}">
+      <div class="modal ${item.type === "bespoke" ? "bespoke-modal" : ""}" role="dialog" aria-modal="true" aria-label="${escapeHtml(item.name)}">
         <button class="modal-close" type="button" data-action="close-preview" aria-label="Close preview">×</button>
         <h3>${escapeHtml(item.name)}</h3>
         <p class="muted">${typeLabel} · LVL ${item.minLevel} · ${item.price ? `${item.price} money` : "Free"}</p>
         ${visual}
+        ${item.description ? `<p class="shop-item-desc" style="font-size:13px;margin:8px 0;">${escapeHtml(item.description)}</p>` : ""}
         <p class="muted status">${status}</p>
+        ${item.type === "bespoke" && !locked && pupil.money >= item.price ? `
+          <form class="bespoke-order-form" data-action="order-bespoke">
+            <input name="note" placeholder="Décris l'item sur mesure de tes rêves..." required />
+            <button type="submit">Commander pour ${item.price} money</button>
+          </form>
+        ` : ""}
       </div>
     </div>
   `;
@@ -783,6 +817,8 @@ function renderPupilModal(pupil) {
             ${gear.map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}
           </dl>
 
+          ${renderCustomOrders(pupil)}
+
           <p class="muted next-reward">${next
             ? `Next at LVL ${next.level}: ${next.rewards.map(escapeHtml).join(", ")}`
             : "Max rewards unlocked!"}</p>
@@ -810,6 +846,20 @@ function openPreview(itemId) {
   modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", closePreview);
   modalRoot.querySelector(".modal")?.addEventListener("click", (event) => event.stopPropagation());
   modalRoot.querySelector("[data-action='close-preview']")?.addEventListener("click", closePreview);
+
+  modalRoot.querySelector("[data-action='order-bespoke']")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const currentPupil = getPupilById(state, getShopPupilId());
+    if (!currentPupil || !canBuyItem(currentPupil, item)) {
+      showToast("Conditions non remplies (LVL 10 et 100 money requis).", "error");
+      return;
+    }
+    const note = new FormData(event.currentTarget).get("note");
+    const next = purchaseItem(state, currentPupil.id, "custom-bespoke", String(note || ""));
+    closePreview();
+    commit(next);
+    showToast(`Commande sur mesure transmise au créateur : "${note}" !`, "levelup");
+  });
 }
 
 function closePreview() {

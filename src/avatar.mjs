@@ -59,14 +59,48 @@ const WOOD    = { base: "#7A5A38", dark: "#573F26", lite: "#96754C", line: "#2E2
    Chaque tenue n'est qu'un jeu d'options : la silhouette ne change jamais,
    seule la quantité d'équipement monte. */
 const OUTFITS = {
-  starter:        { cloth: "lin",     cape: false,   mail: false, emblem: false, greaves: false, pathfinder: true },
-  "vocab-ranger": { cloth: "sinople",  mantle: true,  mail: false, emblem: false, greaves: false },
-  "grammar-mage": { cloth: "pourpre",  cape: true,    mail: false, emblem: true,  greaves: false },
-  "story-keeper": { cloth: "ecarlate", cape: true,    mail: true,  emblem: true,  greaves: true  }
+  starter:          { cloth: "lin",      role: "scout",     cape: false,  mail: false, emblem: false, greaves: false, pathfinder: true },
+  "vocab-ranger":   { cloth: "sinople",  role: "ranger",    mantle: true, mail: false, emblem: false, greaves: false },
+  "grammar-mage":   { cloth: "pourpre",  role: "mage",      cape: true,   mail: false, emblem: true,  greaves: false },
+  "story-keeper":   { cloth: "ecarlate", role: "keeper",    cape: true,   mail: true,  emblem: true,  greaves: true  },
+  "honor-knight":   { cloth: "azur",     role: "knight",    cape: true,   mail: true,  emblem: true,  greaves: true },
+  "grand-archmage": { cloth: "pourpre",  role: "archmage",  mantle: true, cape: true,  emblem: true,  greaves: false },
+  "realm-sovereign":{ cloth: "ecarlate", role: "sovereign", cape: true,   mail: true,  emblem: true,  greaves: true }
 };
-const HEADGEAR = { "no-hat": "none", "explorer-cap": "goggles", "wizard-hat": "wizard", "gold-crown": "crown" };
-const HANDGEAR = { "no-weapon": "none", "pencil-sword": "sword", "word-wand": "staff", "star-shield": "shield" };
-const HAIRCUTS = { short: "court", long: "longue", curly: "boucle", spiky: "epis" };
+const HEADGEAR = {
+  "no-hat": "none",
+  "explorer-cap": "goggles",
+  "feather-beret": "beret",
+  "wizard-hat": "wizard",
+  "shadow-hood": "hood",
+  "gold-crown": "crown",
+  "steel-helm": "helm",
+  "winged-circlet": "circlet",
+  "star-cowl": "starcowl",
+  "celestial-crown": "celestial"
+};
+const HANDGEAR = {
+  "no-weapon": "none",
+  "pencil-sword": "sword",
+  "word-wand": "staff",
+  "star-shield": "shield",
+  "lore-lantern": "lantern",
+  "spell-grimoire": "grimoire",
+  "dual-daggers": "daggers",
+  "astral-scepter": "scepter",
+  "wisdom-relic": "relic",
+  "custom-bespoke": "bespoke"
+};
+const HAIRCUTS = {
+  short: "court",
+  long: "longue",
+  curly: "boucle",
+  spiky: "epis",
+  ponytail: "queue",
+  braided: "tresse",
+  flowing: "flottant",
+  "celestial-hair": "couronne"
+};
 
 /* ---------- helpers ---------- */
 
@@ -329,6 +363,38 @@ function heroShapes(opt) {
     S.push(p("M138,188 L152,188 L150,112 L145,97 L140,112 Z", STEEL.base));
     S.push(fold("M145,184 L145,116", STEEL.dark, 2.2, 0.55));
     S.push(fold("M141.5,184 L143,118", STEEL.lite, 1.8, 0.85));
+  } else if (hand === "lantern") {
+    S.push(p("M144,182 L150,182 L152,242 L142,242 Z", STEEL.dark));
+    S.push(c(147, 212, 11, "#FFD54F"));
+    S.push(c(147, 212, 5.5, "#FFF9C4", { noStroke: true }));
+    S.push(p("M139,200 L155,200 L153,224 L141,224 Z", "none", { sw: 1.5, stroke: GOLD.base }));
+    S.push(p("M147,176 C142,176 140,184 147,186", "none", { sw: 2, stroke: GOLD.dark }));
+  } else if (hand === "grimoire") {
+    S.push(p("M136,170 L162,180 L154,236 L128,224 Z", LEATHER.base));
+    S.push(p("M138,172 L160,181 L153,233 L131,223 Z", "#EDE4D0"));
+    S.push(p("M132,176 L158,186 L150,238 L124,228 Z", LEATHER.dark));
+    S.push(c(144, 206, 5, GOLD.base));
+    S.push(p("M144,212 L144,242", "#8E3230", { sw: 2 }));
+  } else if (hand === "daggers") {
+    S.push(p("M138,188 L146,188 L142,126 Z", STEEL.base));
+    S.push(p("M134,188 L150,188", GOLD.dark, { sw: 2 }));
+    S.push(p("M140,188 L144,210", LEATHER.dark, { sw: 2.4 }));
+    S.push(p("M148,194 L154,194 L158,150 Z", STEEL.base));
+  } else if (hand === "scepter") {
+    S.push(p("M144,70 L150,70 L153,350 L147,350 Z", GOLD.base));
+    S.push(c(147, 62, 12, "#7FC7D9"));
+    S.push(c(147, 62, 5, "#FFFFFF", { noStroke: true }));
+    S.push(e(147, 62, 16, 6, "none", { sw: 1.8, stroke: GOLD.lite }));
+  } else if (hand === "relic") {
+    S.push(p("M132,180 L160,180 L146,155 Z", GOLD.base));
+    S.push(p("M132,180 L160,180 L146,205 Z", GOLD.dark));
+    S.push(c(146, 180, 6, "#7FC7D9"));
+    S.push(c(146, 180, 2.5, "#FFFFFF", { noStroke: true }));
+  } else if (hand === "bespoke") {
+    S.push(p("M134,178 L158,178 L146,152 Z", GOLD.base));
+    S.push(p("M134,178 L158,178 L146,204 Z", GOLD.dark));
+    S.push(c(146, 178, 6.5, "#FF5A5F"));
+    S.push(c(146, 178, 2.5, "#FFF6E6", { noStroke: true }));
   }
 
   return S;
@@ -461,6 +527,36 @@ function hairShapes(cut, head, girl) {
     return S;
   }
 
+  if (cut === "queue") {
+    S.push(p("M78,58 C74,38 80,18 100,18 C120,18 126,38 122,58 C121,48 118,40 112,36 C105,32 95,32 88,36 C82,40 79,48 78,58 Z", HAIR.base));
+    S.push(p("M96,16 C92,4 102,0 112,2 C124,5 132,16 128,30 C124,20 118,14 110,12 Z", HAIR.dark));
+    S.push(c(106, 12, 3.5, GOLD.base));
+    return S;
+  }
+
+  if (cut === "tresse") {
+    S.push(p("M78,58 C74,38 82,18 100,18 C118,18 126,38 122,58 C120,48 116,40 110,36 C104,32 96,32 90,36 C84,40 80,48 78,58 Z", HAIR.base));
+    S.push(p("M76,54 C72,66 74,80 78,92 C80,94 84,94 84,90 C80,80 78,66 82,54 Z", HAIR.base));
+    S.push(p("M124,54 C128,66 126,80 122,92 C120,94 116,94 116,90 C120,80 122,66 118,54 Z", HAIR.dark));
+    S.push(c(78, 86, 2, STEEL.lite));
+    S.push(c(122, 86, 2, STEEL.lite));
+    return S;
+  }
+
+  if (cut === "flottant") {
+    S.push(p("M74,68 C68,48 70,22 86,14 C94,10 106,10 114,14 C130,22 132,48 126,68 C124,56 120,46 114,40 C108,34 92,34 86,40 C80,46 76,56 74,68 Z", HAIR.base));
+    S.push(p("M68,54 C58,74 56,102 62,126 C66,130 72,128 72,122 C68,102 68,76 76,56 Z", HAIR.base));
+    S.push(p("M132,54 C142,74 144,102 138,126 C134,130 128,128 128,122 C132,102 132,76 124,56 Z", HAIR.dark));
+    return S;
+  }
+
+  if (cut === "couronne") {
+    S.push(p("M76,56 C72,36 82,16 100,16 C118,16 128,36 124,56 C122,46 118,38 112,34 C104,30 96,30 88,34 C82,38 78,46 76,56 Z", HAIR.base));
+    S.push(p("M78,28 C88,22 112,22 122,28", "none", { sw: 3.5, stroke: GOLD.base }));
+    S.push(c(100, 24, 2.5, "#8E3230"));
+    return S;
+  }
+
   /* ----- Court ----- */
   if (girl) {
     /* Carré court : la masse descend le long des joues jusqu'à la mâchoire
@@ -507,6 +603,28 @@ function faceShapes(face, girl, T) {
     S.push(p("M86.5,52 Q92,55.5 97.5,52", "none", { sw: 2.6, stroke: INK }));
     S.push(...eye(108));
     S.push(brow(92, 0), brow(108, 0));
+  } else if (face === "smirk") {
+    S.push(...eye(92), ...eye(108));
+    S.push(brow(92, -1), brow(108, 2));
+    S.push(p("M96,69 Q103,67 107,72", "none", { sw: 2, stroke: T.line }));
+  } else if (face === "fierce") {
+    S.push(p("M87,51.5 L97,53", "none", { sw: 3.4, stroke: INK }));
+    S.push(p("M103,53 L113,51.5", "none", { sw: 3.4, stroke: INK }));
+    S.push(brow(92, 3), brow(108, 3));
+    S.push(p("M96,70 L104,70", "none", { sw: 2, stroke: T.line }));
+  } else if (face === "star-eyes") {
+    S.push(p("M92,49 L93.5,52 L96.5,52 L94,54 L95,57 L92,55 L89,57 L90,54 L87.5,52 L90.5,52 Z", "#FFD54F"));
+    S.push(p("M108,49 L109.5,52 L112.5,52 L110,54 L111,57 L108,55 L105,57 L106,54 L103.5,52 L106.5,52 Z", "#FFD54F"));
+    S.push(brow(92, 0), brow(108, 0));
+    S.push(p("M95.5,69 Q100,73 104.5,69", "none", { sw: 2, stroke: T.line }));
+  } else if (face === "transcendent") {
+    S.push(c(92, 52, 3.5, "#E2BC70", { noStroke: true }));
+    S.push(c(108, 52, 3.5, "#E2BC70", { noStroke: true }));
+    S.push(c(92, 52, 1.5, "#FFFFFF", { noStroke: true }));
+    S.push(c(108, 52, 1.5, "#FFFFFF", { noStroke: true }));
+    S.push(c(100, 44, 2, "#7FC7D9", { noStroke: true }));
+    S.push(brow(92, -1), brow(108, -1));
+    S.push(p("M96,69 Q100,71 104,69", "none", { sw: 1.8, stroke: T.line }));
   } else {
     S.push(...eye(92), ...eye(108));
     S.push(brow(92, 0), brow(108, 0));
@@ -519,7 +637,7 @@ function faceShapes(face, girl, T) {
   if (face === "grin") {
     S.push(p("M93.5,68 C97,73.5 103,73.5 106.5,68 Z", "#8A4048", { sw: 1.6 }));
     S.push(p("M94.5,67.5 L105.5,67.5", "none", { sw: 1.6, stroke: "#F7EEDD" }));
-  } else {
+  } else if (face !== "smirk" && face !== "fierce" && face !== "star-eyes" && face !== "transcendent") {
     S.push(p("M95.5,69 Q100,72 104.5,69", "none", { sw: 2, stroke: T.line }));
   }
   return S;
@@ -551,12 +669,29 @@ function headgearShapes(head) {
     S.push(c(111, 29, 6.2, "#80C8D8", { sw: 1.2 }));
     S.push(p("M84,26 C86,23 89,22 92,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
     S.push(p("M106,26 C108,23 111,22 114,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
+  } else if (head === "beret") {
+    S.push(p("M70,36 C70,22 90,14 116,18 C128,20 134,28 130,36 C124,40 76,40 70,36 Z", CLOTHS.sinople.base));
+    S.push(p("M76,37 C88,41 116,41 126,37", "none", { sw: 2.2, stroke: LEATHER.dark }));
+    S.push(p("M118,22 C126,10 138,4 144,2 C140,8 134,18 126,24 Z", "#DC5040"));
+    S.push(fold("M82,28 C94,22 110,22 122,26", CLOTHS.sinople.lite, 1.4, 0.5));
   } else if (head === "wizard") {
     S.push(p("M54,34 C74,25 126,25 146,34 C126,43 74,43 54,34 Z", CLOAK.dark));
     S.push(p("M80,32 C82,16 92,2 104,0 C106,12 103,24 117,32 Z", CLOAK.base));
     S.push(p("M79,26 C88,31 112,31 121,26 L121,34 C112,39 88,39 79,34 Z", GOLD.dark));
     S.push(p("M100,26 L104,31 L100,36 L96,31 Z", "#7FC7D9"));
     S.push(fold("M86,28 C88,18 93,8 100,3", CLOAK.lite, 2, 0.45));
+  } else if (head === "circlet") {
+    S.push(p("M76,36 C86,41 114,41 124,36", "none", { sw: 3.2, stroke: STEEL.base }));
+    S.push(p("M94,36 L100,26 L106,36 Z", GOLD.base));
+    S.push(c(100, 32, 2.2, "#7FC7D9"));
+    S.push(p("M75,37 C70,30 68,20 72,14 C75,22 78,30 81,36 Z", STEEL.lite));
+    S.push(p("M125,37 C130,30 132,20 128,14 C125,22 122,30 119,36 Z", STEEL.lite));
+  } else if (head === "starcowl") {
+    S.push(p("M74,52 C72,22 86,8 100,8 C114,8 128,22 126,52 C125,60 122,66 118,70 L112,58 C115,40 111,26 100,26 C89,26 85,40 88,58 L82,70 C78,66 75,60 74,52 Z", CLOTHS.pourpre.dark));
+    S.push(c(94, 20, 1.8, "#FFE58A"));
+    S.push(c(106, 16, 2.2, "#7FC7D9"));
+    S.push(c(102, 24, 1.5, "#FFE58A"));
+    S.push(fold("M83,54 C81,34 88,22 100,20 C112,22 119,34 117,54", GOLD.base, 1.4, 0.6));
   } else if (head === "crown") {
     S.push(p("M78,34 L78,14 L89,24 L100,7 L111,24 L122,14 L122,34 Z", GOLD.base));
     S.push(p("M78,29 C87,35 113,35 122,29 L122,38 C113,44 87,44 78,38 Z", GOLD.dark));
@@ -564,6 +699,13 @@ function headgearShapes(head) {
     S.push(c(100, 14, 3, "#7FC7D9", { sw: 1.1 }));
     S.push(c(111, 22, 2.6, "#2F5C43", { sw: 1.1 }));
     S.push(fold("M83,35 C90,39 98,40 104,40", GOLD.lite, 1.6, 0.7));
+  } else if (head === "celestial") {
+    S.push(p("M74,34 L72,8 L86,22 L100,2 L114,22 L128,8 L126,34 Z", GOLD.base));
+    S.push(p("M74,30 C86,36 114,36 126,30 L126,38 C114,44 86,44 74,38 Z", GOLD.dark));
+    S.push(c(86, 18, 3, "#8E3230"));
+    S.push(c(100, 10, 3.8, "#7FC7D9"));
+    S.push(c(114, 18, 3, "#2F5C43"));
+    S.push(fold("M80,33 C90,38 110,38 120,33", "#FFFFFF", 1.8, 0.8));
   }
   return S;
 }
@@ -631,16 +773,46 @@ const ITEM_CROPS = {
   outfit: "44 84 112 214",
   hat: "58 0 84 76",
   face: "76 30 48 52",
+  hair: "60 2 80 80",
+  weapon: "116 50 72 200",
+  bespoke: "40 40 120 120",
   "pencil-sword": "116 86 62 156",
   "word-wand": "126 50 48 168",
   "star-shield": "8 128 84 116",
+  "lore-lantern": "118 160 60 100",
+  "spell-grimoire": "116 160 64 90",
+  "dual-daggers": "124 110 54 110",
+  "astral-scepter": "120 40 60 180",
+  "wisdom-relic": "116 130 64 90",
+  "custom-bespoke": "40 40 120 120",
   short: "68 6 64 64",
   long: "60 6 80 152",
   curly: "60 2 80 64",
-  spiky: "62 0 76 68"
+  spiky: "62 0 76 68",
+  ponytail: "60 2 80 80",
+  braided: "60 2 80 100",
+  flowing: "58 2 84 140",
+  "celestial-hair": "58 2 84 90"
 };
 
 export function renderItemArt(item) {
+  if (item.type === "bespoke" || item.id === "custom-bespoke") {
+    return `<svg class="avatar item-art bespoke-art" viewBox="0 0 100 100" role="img" aria-label="${item.name}">
+      <defs>
+        <radialGradient id="bespoke-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#FFE082" stop-opacity="0.95"/>
+          <stop offset="60%" stop-color="#FFB300" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#FF8F00" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="50" cy="50" r="46" fill="url(#bespoke-glow)"/>
+      <circle cx="50" cy="50" r="34" fill="#241D15" stroke="#C0913E" stroke-width="2.5"/>
+      <polygon points="50,22 58,38 76,42 63,55 66,73 50,64 34,73 37,55 24,42 42,38" fill="#E2BC70" stroke="#8F692A" stroke-width="1.5"/>
+      <circle cx="50" cy="50" r="9" fill="#8E3230" stroke="#E2BC70" stroke-width="1.2"/>
+      <circle cx="50" cy="50" r="3.5" fill="#FFF6E6"/>
+    </svg>`;
+  }
+
   const base = {
     id: safeId(`art-${item.id}-${++artSeq}`),
     tone: "light",

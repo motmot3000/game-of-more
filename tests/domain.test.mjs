@@ -148,7 +148,53 @@ test("rewards for a level list unlocks and always mention HP restored above leve
 test("next reward finds the closest upcoming unlock and stops at the top", () => {
   const next = getNextReward(1);
   assert.equal(next.level, 2);
-  assert.equal(getNextReward(5), null);
+  assert.equal(getNextReward(10), null);
+  const nextAt5 = getNextReward(5);
+  assert.equal(nextAt5.level, 6);
+});
+
+test("shop covers all categories with regular level unlocks up to level 10", () => {
+  const categories = ["outfit", "hat", "weapon", "face", "hair", "title"];
+  for (const cat of categories) {
+    const items = getRewardsForLevel(10);
+    assert.ok(items.length > 0);
+  }
+});
+
+test("bespoke item costs 100 money and requires level 10", () => {
+  const item = getShopItem("custom-bespoke");
+  assert.ok(item);
+  assert.equal(item.minLevel, 10);
+  assert.equal(item.price, 100);
+  assert.equal(item.type, "bespoke");
+
+  let state = createInitialState();
+  const pupilId = getCurrentClass(state).pupils[0].id;
+  state = awardMoney(state, [pupilId], 200, "treasure");
+
+  // At level 1, cannot buy
+  let pupil = getPupilById(state, pupilId);
+  assert.equal(canBuyItem(pupil, item), false);
+  let nextState = purchaseItem(state, pupilId, "custom-bespoke", "Épée du Tonnerre");
+  assert.equal(nextState, state);
+
+  // Level up to 10
+  for (let i = 1; i < 10; i++) {
+    state = awardXp(state, [pupilId], xpNeededForLevel(i), "levelup");
+  }
+  pupil = getPupilById(state, pupilId);
+  assert.equal(pupil.level, 10);
+  assert.equal(canBuyItem(pupil, item), true);
+
+  // Purchase bespoke item
+  nextState = purchaseItem(state, pupilId, "custom-bespoke", "Épée du Tonnerre");
+  const updated = getPupilById(nextState, pupilId);
+  assert.equal(updated.money, 100);
+  assert.equal(isItemOwned(updated, "custom-bespoke"), true);
+  assert.equal(updated.customOrders.length, 1);
+  assert.equal(updated.customOrders[0].note, "Épée du Tonnerre");
+  assert.equal(updated.customOrders[0].cost, 100);
+  assert.ok(nextState.events.some((e) => e.type === "bespoke_order"));
 });
 
 test("toggling selection adds and removes a pupil from the bulk selection", () => {
