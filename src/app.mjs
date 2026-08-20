@@ -66,6 +66,7 @@ const ui = {
   shopCategory: "outfit",
   xpAmount: 100,
   coinAmount: 20,
+  consoleOpen: false,
   openPanels: new Set(["hero"])
 };
 
@@ -85,6 +86,7 @@ function navigate(hash) {
 window.addEventListener("hashchange", () => {
   closeDialog();
   ui.query = "";
+  ui.consoleOpen = false;
   render();
 });
 
@@ -127,15 +129,28 @@ function renderViewBody(view) {
   return `
     <main class="page page-board">
       ${renderBoard(classroom, ui, state.selectedPupilIds)}
-      <aside class="console" aria-label="Teacher console">
-        ${renderConsole({
-          classroom,
-          ui,
-          targets,
-          focused,
-          canUndo: history.length > 0,
-          events: state.events
-        })}
+      <aside class="console ${ui.consoleOpen ? "is-open" : ""}" aria-label="Teacher console">
+        <button
+          class="console-mobile-toggle"
+          id="console-toggle"
+          type="button"
+          data-action="toggle-console"
+          aria-expanded="${ui.consoleOpen}"
+          aria-controls="teacher-console-body"
+        >
+          <span>${icon("shop")}Teacher console</span>
+          <strong>${ui.consoleOpen ? "Close" : targets.length ? `${targets.length} selected` : "Open controls"}</strong>
+        </button>
+        <div class="console-body" id="teacher-console-body">
+          ${renderConsole({
+            classroom,
+            ui,
+            targets,
+            focused,
+            canUndo: history.length > 0,
+            events: state.events
+          })}
+        </div>
       </aside>
     </main>
     <input type="file" id="import-file" accept="application/json,.json" hidden />
@@ -173,7 +188,7 @@ function renderTopbar(view) {
 function renderBanner() {
   return `
     <div class="banner">
-      <img src="./assets/banner.png" alt="" />
+      <img src="./assets/banner.png" alt="" width="1408" height="352" decoding="async" />
       <h1 class="banner-title">Game <em>of</em> More</h1>
     </div>
   `;
@@ -309,6 +324,11 @@ const ACTIONS = {
   "show-board": () => navigate("#board"),
   "show-student": () => navigate("#student"),
   "show-rules": () => navigate("#rules"),
+
+  "toggle-console": () => {
+    ui.consoleOpen = !ui.consoleOpen;
+    render();
+  },
 
   "select-class": (el) => {
     disarmDanger();
