@@ -35,7 +35,7 @@ import {
   renderCoinIcon,
   renderHeartIcon,
   renderMascot
-} from "./avatar.mjs?v=813fb1b";
+} from "./avatar.mjs?v=84b6aef";
 
 const app = document.querySelector("#app");
 const toasts = document.querySelector("#toasts");

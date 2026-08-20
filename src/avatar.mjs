@@ -129,6 +129,13 @@ function clipGeom(s) {
   return `<${s.tag} ${attrs(s.a)}/>`;
 }
 
+function mirroredShape(shape) {
+  return {
+    ...shape,
+    a: { ...shape.a, transform: "translate(200 0) scale(-1 1)" }
+  };
+}
+
 let artSeq = 0;
 function safeId(value) {
   return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "") || `h${++artSeq}`;
@@ -162,6 +169,7 @@ function heroShapes(opt) {
   const sleeve = opt.mail ? mailFill : C.dark;
 
   const S = [];
+  const foreground = [];
 
   /* --- manteau, tout derrière : c'est lui qui donne la silhouette */
   if (opt.cape) {
@@ -177,10 +185,9 @@ function heroShapes(opt) {
 
   /* --- épaules et manches. Les deux côtés partagent exactement la même
          géométrie miroir et le même plan de profondeur. */
-  S.push(p("M68,109 C59,110 53,117 51,130 C49,148 51,169 53,183 L67,183 C67,166 67,150 68,134 C69,127 73,122 77,120 Z", sleeve));
-  S.push(fold("M57,123 C53,143 55,165 58,179", C.line, 1.2, 0.4));
-  S.push(p("M132,109 C141,110 147,117 149,130 C151,148 149,169 147,183 L133,183 C133,166 133,150 132,134 C131,127 127,122 123,120 Z", sleeve));
-  S.push(fold("M143,123 C147,143 145,165 142,179", C.line, 1.2, 0.4));
+  const sleeveShape = p("M68,109 C59,110 53,117 51,130 C49,148 51,169 53,183 L67,183 C67,166 67,150 68,134 C69,127 73,122 77,120 Z", sleeve);
+  const sleeveFold = fold("M57,123 C53,143 55,165 58,179", C.line, 1.2, 0.4);
+  S.push(sleeveShape, mirroredShape(sleeveShape), sleeveFold, mirroredShape(sleeveFold));
 
   /* --- chausses. Sans grèves la botte s'arrête au mollet : une tige qui
          monte au genou lit comme une cuissarde, pas comme un aventurier. */
@@ -279,14 +286,14 @@ function heroShapes(opt) {
   /* Une dague à chaque hanche garde la paire visible sur toutes les tenues,
      sans transformer les mains au repos en pose de combat. */
   if (hand === "daggers") {
-    S.push(p("M62,196 L74,201 L62,238 L54,250 L51,237 Z", STEEL.dark));
-    S.push(p("M138,196 L126,201 L138,238 L146,250 L149,237 Z", STEEL.base));
-    S.push(p("M53,191 L78,199 L75,208 L50,200 Z", GOLD.dark));
-    S.push(p("M147,191 L122,199 L125,208 L150,200 Z", GOLD.base));
-    S.push(p("M61,181 L69,183 L65,199 L57,197 Z", LEATHER.base));
-    S.push(p("M139,181 L131,183 L135,199 L143,197 Z", LEATHER.dark));
-    S.push(fold("M69,207 L57,238", STEEL.lite, 1.5, 0.72));
-    S.push(fold("M131,207 L143,238", STEEL.lite, 1.5, 0.72));
+    foreground.push(p("M62,196 L74,201 L62,238 L54,250 L51,237 Z", STEEL.dark));
+    foreground.push(p("M138,196 L126,201 L138,238 L146,250 L149,237 Z", STEEL.base));
+    foreground.push(p("M53,191 L78,199 L75,208 L50,200 Z", GOLD.dark));
+    foreground.push(p("M147,191 L122,199 L125,208 L150,200 Z", GOLD.base));
+    foreground.push(p("M61,181 L69,183 L65,199 L57,197 Z", LEATHER.base));
+    foreground.push(p("M139,181 L131,183 L135,199 L143,197 Z", LEATHER.dark));
+    foreground.push(fold("M69,207 L57,238", STEEL.lite, 1.5, 0.72));
+    foreground.push(fold("M131,207 L143,238", STEEL.lite, 1.5, 0.72));
   }
 
   /* --- mantelet d'épaules : la marque du rôdeur */
@@ -303,11 +310,11 @@ function heroShapes(opt) {
 
   /* --- écu : héraldique nette, l'avant-bras reste caché derrière. */
   if (hand === "shield") {
-    S.push(p("M18,140 L78,140 L76,181 C76,207 60,223 48,231 C36,223 20,207 20,181 Z", C.dark));
-    S.push(p("M24,146 L72,146 L70,180 C70,201 58,214 48,221 C38,214 26,201 26,180 Z", "none", { stroke: GOLD.base, sw: 3.2 }));
-    S.push(p("M48,157 L51,169 L61,163 L55,174 L67,178 L55,182 L61,193 L51,187 L48,199 L45,187 L35,193 L41,182 L29,178 L41,174 L35,163 L45,169 Z", STEEL.base, { sw: 1.5 }));
-    S.push(c(48, 178, 5.5, STEEL.dark));
-    S.push(c(46.5, 176.5, 1.8, STEEL.lite, { noStroke: true }));
+    foreground.push(p("M18,140 L78,140 L76,181 C76,207 60,223 48,231 C36,223 20,207 20,181 Z", C.dark));
+    foreground.push(p("M24,146 L72,146 L70,180 C70,201 58,214 48,221 C38,214 26,201 26,180 Z", "none", { stroke: GOLD.base, sw: 3.2 }));
+    foreground.push(p("M48,157 L51,169 L61,163 L55,174 L67,178 L55,182 L61,193 L51,187 L48,199 L45,187 L35,193 L41,182 L29,178 L41,174 L35,163 L45,169 Z", STEEL.base, { sw: 1.5 }));
+    foreground.push(c(48, 178, 5.5, STEEL.dark));
+    foreground.push(c(46.5, 176.5, 1.8, STEEL.lite, { noStroke: true }));
   }
 
   /* --- col, cou, tête */
@@ -321,9 +328,9 @@ function heroShapes(opt) {
 
   /* Les longueurs tombent DERRIÈRE la tête : la nuque les cache à la racine
      et elles n'empiètent jamais sur le visage. */
-  if (head !== "helm") H.push(...backHair(cut, opt.girl));
+  if (head !== "helm" && head !== "hood") H.push(...backHair(cut, opt.girl));
 
-  if (head === "hood") H.push(p("M72,58 C68,24 84,6 100,6 C116,6 132,24 128,58 C128,76 121,94 112,102 L88,102 C79,94 72,76 72,58 Z", CLOAK.base));
+  if (head === "hood") H.push(p("M73,59 C69,29 82,9 100,8 C118,9 131,29 127,59 C127,77 121,92 113,101 L87,101 C79,92 73,77 73,59 Z", CLOAK.base));
   H.push(p("M100,22 C116,22 124,35 123,51 C122,68 113,80 100,84 C87,80 78,68 77,51 C76,35 84,22 100,22 Z", T.base));
   H.push(ao("M121,51 C124,62 121,72 115,79 L111,74 C115,67 116,59 115,51 Z", 0.18));
 
@@ -353,101 +360,95 @@ function heroShapes(opt) {
   })));
 
   if (hand === "staff") {
-    S.push(p("M145,88 L153,88 L155,362 L147,362 Z", WOOD.base));
-    S.push(fold("M148,110 C148,190 150,280 150,352", WOOD.line, 1.3, 0.55));
-    S.push(p("M143,120 L154,120 L154,132 L143,132 Z", LEATHER.dark));
-    S.push(p("M136,74 C136,60 158,60 158,74 C158,86 148,92 147,92 C146,92 136,86 136,74 Z", GOLD.dark));
-    S.push(c(147, 72, 12, "#7FC7D9"));
-    S.push(c(143, 68, 4, "#DCF3F8", { noStroke: true }));
+    foreground.push(p("M145,88 L153,88 L155,362 L147,362 Z", WOOD.base));
+    foreground.push(fold("M148,110 C148,190 150,280 150,352", WOOD.line, 1.3, 0.55));
+    foreground.push(p("M143,120 L154,120 L154,132 L143,132 Z", LEATHER.dark));
+    foreground.push(p("M136,74 C136,60 158,60 158,74 C158,86 148,92 147,92 C146,92 136,86 136,74 Z", GOLD.dark));
+    foreground.push(c(147, 72, 12, "#7FC7D9"));
+    foreground.push(c(143, 68, 4, "#DCF3F8", { noStroke: true }));
   }
 
   if (hand === "wand") {
-    S.push(p("M142,145 L150,145 L149,218 L143,218 Z", WOOD.base));
-    S.push(fold("M146,151 L146,211", WOOD.lite, 1.2, 0.55));
-    S.push(p("M138,141 L154,141 L152,150 L140,150 Z", GOLD.dark));
-    S.push(p("M146,120 L154,133 L149,145 L142,145 L137,133 Z", "#65CBE0", { sw: 1.5, stroke: "#275C72" }));
-    S.push(p("M145,124 L149,133 L146,141 L142,133 Z", "#DDF7FF", { noStroke: true }));
+    foreground.push(p("M142,145 L150,145 L149,218 L143,218 Z", WOOD.base));
+    foreground.push(fold("M146,151 L146,211", WOOD.lite, 1.2, 0.55));
+    foreground.push(p("M138,141 L154,141 L152,150 L140,150 Z", GOLD.dark));
+    foreground.push(p("M146,120 L154,133 L149,145 L142,145 L137,133 Z", "#65CBE0", { sw: 1.5, stroke: "#275C72" }));
+    foreground.push(p("M145,124 L149,133 L146,141 L142,133 Z", "#DDF7FF", { noStroke: true }));
   }
 
   if (hand === "lantern") {
-    S.push(p("M137,204 C137,184 156,184 156,204", "none", { sw: 2.8, stroke: GOLD.dark }));
-    S.push(p("M135,201 L158,201 L156,209 L137,209 Z", GOLD.dark));
-    S.push(p("M139,209 L154,209 L158,244 L135,244 Z", GOLD.base));
-    S.push(p("M142,213 L151,213 L153,239 L139,239 Z", "#F7C95F", { sw: 1.2, stroke: GOLD.dark }));
-    S.push(p("M144,217 L150,217 L151,236 L142,236 Z", "#FFF1B8", { noStroke: true }));
-    S.push(fold("M146.5,211 L146.5,241", GOLD.lite, 1.2, 0.65));
-    S.push(p("M133,243 L160,243 L156,252 L137,252 Z", GOLD.dark));
+    foreground.push(p("M137,204 C137,184 156,184 156,204", "none", { sw: 2.8, stroke: GOLD.dark }));
+    foreground.push(p("M135,201 L158,201 L156,209 L137,209 Z", GOLD.dark));
+    foreground.push(p("M139,209 L154,209 L158,244 L135,244 Z", GOLD.base));
+    foreground.push(p("M142,213 L151,213 L153,239 L139,239 Z", "#F7C95F", { sw: 1.2, stroke: GOLD.dark }));
+    foreground.push(p("M144,217 L150,217 L151,236 L142,236 Z", "#FFF1B8", { noStroke: true }));
+    foreground.push(fold("M146.5,211 L146.5,241", GOLD.lite, 1.2, 0.65));
+    foreground.push(p("M133,243 L160,243 L156,252 L137,252 Z", GOLD.dark));
   }
 
   if (hand === "book") {
-    S.push(p("M76,158 C85,154 94,157 100,163 L100,201 C92,196 84,195 76,198 Z", "#D9C9A9", { sw: 1.6, stroke: "#6E5F44" }));
-    S.push(p("M100,163 C106,157 115,154 124,158 L124,198 C116,195 108,196 100,201 Z", "#E8DCC2", { sw: 1.6, stroke: "#6E5F44" }));
-    S.push(p("M72,154 C84,150 94,153 100,158 C106,153 116,150 128,154 L128,202 C116,199 107,201 100,207 C93,201 84,199 72,202 Z", "none", { sw: 2.6, stroke: CLOTHS.pourpre.lite }));
-    S.push(fold("M81,168 C87,166 93,167 97,171", "#8A7A60", 1.1, 0.68));
-    S.push(fold("M103,171 C108,167 114,166 120,168", "#8A7A60", 1.1, 0.68));
-    S.push(p("M100,174 L102.5,180 L109,181 L104,185 L105.5,192 L100,188 L94.5,192 L96,185 L91,181 L97.5,180 Z", GOLD.base, { sw: 1 }));
+    foreground.push(p("M76,158 C85,154 94,157 100,163 L100,201 C92,196 84,195 76,198 Z", "#D9C9A9", { sw: 1.6, stroke: "#6E5F44" }));
+    foreground.push(p("M100,163 C106,157 115,154 124,158 L124,198 C116,195 108,196 100,201 Z", "#E8DCC2", { sw: 1.6, stroke: "#6E5F44" }));
+    foreground.push(p("M72,154 C84,150 94,153 100,158 C106,153 116,150 128,154 L128,202 C116,199 107,201 100,207 C93,201 84,199 72,202 Z", "none", { sw: 2.6, stroke: CLOTHS.pourpre.lite }));
+    foreground.push(fold("M81,168 C87,166 93,167 97,171", "#8A7A60", 1.1, 0.68));
+    foreground.push(fold("M103,171 C108,167 114,166 120,168", "#8A7A60", 1.1, 0.68));
+    foreground.push(p("M100,174 L102.5,180 L109,181 L104,185 L105.5,192 L100,188 L94.5,192 L96,185 L91,181 L97.5,180 Z", GOLD.base, { sw: 1 }));
   }
 
   if (hand === "scepter") {
-    S.push(p("M145,102 L153,102 L153,278 L146,278 Z", GOLD.dark));
-    S.push(fold("M149,113 L150,268", GOLD.lite, 1.4, 0.72));
-    S.push(p("M136,98 Q149,108 162,98 L159,82 L153,90 L149,72 L145,90 L139,82 Z", GOLD.base, { sw: 1.6 }));
-    S.push(c(149, 92, 6, "#68CDE4", { sw: 1.3, stroke: "#275C72" }));
-    S.push(c(147, 90, 1.8, "#E5FAFF", { noStroke: true }));
-    S.push(c(149.5, 278, 4.5, GOLD.base));
+    foreground.push(p("M145,102 L153,102 L153,278 L146,278 Z", GOLD.dark));
+    foreground.push(fold("M149,113 L150,268", GOLD.lite, 1.4, 0.72));
+    foreground.push(p("M136,98 Q149,108 162,98 L159,82 L153,90 L149,72 L145,90 L139,82 Z", GOLD.base, { sw: 1.6 }));
+    foreground.push(c(149, 92, 6, "#68CDE4", { sw: 1.3, stroke: "#275C72" }));
+    foreground.push(c(147, 90, 1.8, "#E5FAFF", { noStroke: true }));
+    foreground.push(c(149.5, 278, 4.5, GOLD.base));
   }
 
   if (hand === "custom") {
-    S.push(p("M142,154 L151,154 L150,220 L143,220 Z", LEATHER.base));
-    S.push(fold("M146,160 L146,213", LEATHER.lite, 1.2, 0.58));
-    S.push(p("M146,121 L157,135 L151,154 L141,154 L135,135 Z", "#6FAFC2", { sw: 1.7, stroke: "#315F88" }));
-    S.push(p("M146,125 L151,136 L147,149 L141,136 Z", "#DDF8FF", { noStroke: true }));
-    S.push(p("M135,135 L141,136 L146,154 L141,154 Z", "#7667A8", { noStroke: true }));
-    S.push(p("M137,151 L156,151 L153,160 L140,160 Z", GOLD.dark));
-    S.push(c(132, 126, 1.8, GOLD.lite, { noStroke: true }));
-    S.push(c(161, 140, 2.2, "#AFA0D8", { noStroke: true }));
+    foreground.push(p("M142,154 L151,154 L150,220 L143,220 Z", LEATHER.base));
+    foreground.push(fold("M146,160 L146,213", LEATHER.lite, 1.2, 0.58));
+    foreground.push(p("M146,121 L157,135 L151,154 L141,154 L135,135 Z", "#6FAFC2", { sw: 1.7, stroke: "#315F88" }));
+    foreground.push(p("M146,125 L151,136 L147,149 L141,136 Z", "#DDF8FF", { noStroke: true }));
+    foreground.push(p("M135,135 L141,136 L146,154 L141,154 Z", "#7667A8", { noStroke: true }));
+    foreground.push(p("M137,151 L156,151 L153,160 L140,160 Z", GOLD.dark));
+    foreground.push(c(132, 126, 1.8, GOLD.lite, { noStroke: true }));
+    foreground.push(c(161, 140, 2.2, "#AFA0D8", { noStroke: true }));
   }
 
   if (hand === "sword") {
-    S.push(p("M145,222 L153,222 L153,194 L145,194 Z", LEATHER.dark));
-    S.push(c(149, 227, 6, GOLD.base));
-    S.push(p("M132,188 C141,186 157,186 166,188 L166,196 C157,194 141,194 132,196 Z", GOLD.base));
-    S.push(p("M143,188 L155,188 L154,111 L149,95 L144,111 Z", STEEL.base));
-    S.push(fold("M149,184 L149,115", STEEL.dark, 2, 0.55));
-    S.push(fold("M146,184 L147,114", STEEL.lite, 1.7, 0.82));
+    foreground.push(p("M145,222 L153,222 L153,194 L145,194 Z", LEATHER.dark));
+    foreground.push(c(149, 227, 6, GOLD.base));
+    foreground.push(p("M132,188 C141,186 157,186 166,188 L166,196 C157,194 141,194 132,196 Z", GOLD.base));
+    foreground.push(p("M143,188 L155,188 L154,111 L149,95 L144,111 Z", STEEL.base));
+    foreground.push(fold("M149,184 L149,115", STEEL.dark, 2, 0.55));
+    foreground.push(fold("M146,184 L147,114", STEEL.lite, 1.7, 0.82));
   }
 
   /* Poignets au premier plan. Hors prise spéciale, les deux côtés sont des
      miroirs exacts; le livre est tenu au centre par deux avant-bras égaux. */
-  if (hand !== "shield") {
-    S.push(p("M52,177 C57,180 63,180 68,177 L68,190 C63,193 57,193 52,190 Z", LEATHER.dark));
-    S.push(fold("M55,184 C58,186 63,186 65,184", LEATHER.lite, 1.1, 0.48));
-  }
-  S.push(p("M148,177 C143,180 137,180 132,177 L132,190 C137,193 143,193 148,190 Z", LEATHER.dark));
-  S.push(fold("M145,184 C142,186 137,186 135,184", LEATHER.lite, 1.1, 0.48));
+  const cuff = p("M52,177 C57,180 63,180 68,177 L68,190 C63,193 57,193 52,190 Z", LEATHER.dark);
+  const cuffFold = fold("M55,184 C58,186 63,186 65,184", LEATHER.lite, 1.1, 0.48);
+  S.push(cuff, mirroredShape(cuff), cuffFold, mirroredShape(cuffFold));
 
   if (hand === "book") {
-    S.push(p("M56,188 C60,186 65,188 67,192 L76,200 L72,208 L61,202 C57,199 54,193 56,188 Z", T.dark));
-    S.push(c(76, 202, 7.5, T.dark));
-    S.push(p("M144,188 C140,186 135,188 133,192 L124,200 L128,208 L139,202 C143,199 146,193 144,188 Z", T.base));
-    S.push(c(124, 202, 7.5, T.base));
-    S.push(fold("M70,201 Q76,205 82,201", T.line, 0.9, 0.5));
-    S.push(fold("M130,201 Q124,205 118,201", T.line, 0.9, 0.5));
+    const forearm = p("M56,188 C60,186 65,188 67,192 L76,200 L72,208 L61,202 C57,199 54,193 56,188 Z", T.base);
+    const bookFist = c(76, 202, 7.5, T.base);
+    const bookFistFold = fold("M70,201 Q76,205 82,201", T.line, 0.9, 0.5);
+    S.push(forearm, mirroredShape(forearm), bookFist, mirroredShape(bookFist), bookFistFold, mirroredShape(bookFistFold));
   } else {
-    if (hand !== "shield") {
-      S.push(c(60, 199, 8, T.dark));
-      S.push(fold("M54,198 Q60,202 66,198", T.line, 0.9, 0.5));
-    }
+    const restingFist = c(60, 199, 8, T.base);
+    const restingFistFold = fold("M54,198 Q60,202 66,198", T.line, 0.9, 0.5);
+    S.push(restingFist, restingFistFold);
 
     if (gripGear) {
       S.push(c(144, 199, 8, T.base));
       S.push(fold("M138,198 Q144,202 150,198", T.line, 0.9, 0.5));
     } else {
-      S.push(c(140, 199, 8, T.base));
-      S.push(fold("M146,198 Q140,202 134,198", T.line, 0.9, 0.5));
+      S.push(mirroredShape(restingFist), mirroredShape(restingFistFold));
     }
   }
 
+  S.push(...foreground);
   return S;
 }
 
@@ -532,13 +533,10 @@ function hairShapes(cut, head, girl) {
 
   const capped = head === "wizard" || head === "crown";
   if (capped) {
-    const S = underHat(girl);
+    const S = cut === "boucle" ? [] : underHat(girl);
     if (cut === "boucle") {
       S.push(c(74, 46, 7, HAIR.base), c(126, 46, 7, HAIR.dark));
       S.push(c(77, 58, 5.5, HAIR.base), c(123, 58, 5.5, HAIR.dark));
-    } else if (cut === "epis" && !girl) {
-      S.push(p("M76,36 C68,34 63,38 62,43 C68,41 73,42 76,45 Z", HAIR.base));
-      S.push(p("M124,36 C132,34 137,38 138,43 C132,41 127,42 124,45 Z", HAIR.dark));
     }
     return S;
   }
@@ -695,16 +693,19 @@ function headgearShapes(head) {
   const S = [];
 
   if (head === "hood") {
-    S.push(p("M76,52 C74,24 86,10 100,10 C114,10 126,24 124,52 C124,59 122,65 119,69 L112,58 C115,42 111,30 100,30 C89,30 85,42 88,58 L81,69 C78,65 76,59 76,52 Z", CLOAK.base));
-    S.push(fold("M84,54 C82,36 89,26 100,24 C111,26 118,36 116,54", CLOAK.line, 1.5, 0.6));
-    S.push(ao("M86,50 C86,34 92,26 100,24 C108,26 114,34 114,50 L110,50 C110,38 106,31 100,29 C94,31 90,38 90,50 Z", 0.18));
+    S.push(p("M77,53 C75,28 86,14 100,14 C114,14 125,28 123,53 C123,61 121,67 117,73 L111,59 C113,44 109,33 100,31 C91,33 87,44 89,59 L83,73 C79,67 77,61 77,53 Z", CLOAK.base));
+    S.push(fold("M84,55 C82,37 89,27 100,25 C111,27 118,37 116,55", CLOAK.line, 1.5, 0.6));
+    S.push(ao("M86,51 C86,36 92,28 100,25 C108,28 114,36 114,51 L110,51 C110,40 106,33 100,31 C94,33 90,40 90,51 Z", 0.18));
   } else if (head === "helm") {
-    S.push(p("M77,38 C77,16 88,8 100,8 C112,8 123,16 123,38 Z", STEEL.base));
-    S.push(p("M75,33 L125,33 L125,43 L75,43 Z", STEEL.dark));
-    S.push(p("M96.5,41 L103.5,41 L103.5,62 C103.5,64.5 96.5,64.5 96.5,62 Z", STEEL.base));
-    S.push(fold("M84,32 C83,20 89,13 95,10", STEEL.lite, 2.6, 0.8));
-    S.push(c(83, 38, 2, GOLD.base, { sw: 1 }));
-    S.push(c(117, 38, 2, GOLD.base, { sw: 1 }));
+    S.push(p("M76,39 C76,17 87,7 100,7 C113,7 124,17 124,39 Z", STEEL.base));
+    S.push(p("M74,34 L126,34 L125,43 L75,43 Z", STEEL.dark));
+    S.push(p("M75,41 L84,42 L83,57 L78,62 L75,55 Z", STEEL.dark));
+    S.push(p("M125,41 L116,42 L117,57 L122,62 L125,55 Z", STEEL.dark));
+    S.push(p("M97.5,40 L102.5,40 L102.5,57 C102.5,60 97.5,60 97.5,57 Z", STEEL.base));
+    S.push(fold("M84,33 C83,21 89,13 95,9", STEEL.lite, 2.6, 0.8));
+    S.push(fold("M100,9 L100,33", STEEL.dark, 1.4, 0.48));
+    S.push(c(82, 38.5, 2, GOLD.base, { sw: 1 }));
+    S.push(c(118, 38.5, 2, GOLD.base, { sw: 1 }));
   } else if (head === "goggles") {
     S.push(p("M74,29 C87,25 113,25 126,29", "none", { sw: 4.2, stroke: LEATHER.dark }));
     S.push(c(89, 29, 9.5, GOLD.dark, { sw: 1.8 }));
@@ -714,18 +715,18 @@ function headgearShapes(head) {
     S.push(p("M84,26 C86,23 89,22 92,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
     S.push(p("M106,26 C108,23 111,22 114,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
   } else if (head === "wizard") {
-    S.push(p("M54,34 C74,25 126,25 146,34 C126,43 74,43 54,34 Z", CLOAK.dark));
-    S.push(p("M80,32 C82,16 92,2 104,0 C106,12 103,24 117,32 Z", CLOAK.base));
-    S.push(p("M79,26 C88,31 112,31 121,26 L121,34 C112,39 88,39 79,34 Z", GOLD.dark));
+    S.push(p("M58,35 C76,28 124,28 142,35 C126,43 74,43 58,35 Z", CLOAK.dark));
+    S.push(p("M79,33 C81,17 90,3 104,0 C105,9 101,15 108,20 C113,23 116,27 119,33 Z", CLOAK.base));
+    S.push(p("M79,27 C89,31 111,31 121,27 L120,35 C111,39 89,39 80,35 Z", GOLD.dark));
     S.push(p("M100,26 L104,31 L100,36 L96,31 Z", "#7FC7D9"));
-    S.push(fold("M86,28 C88,18 93,8 100,3", CLOAK.lite, 2, 0.45));
+    S.push(fold("M86,28 C88,18 93,8 100,3", CLOAK.lite, 2, 0.5));
   } else if (head === "crown") {
-    S.push(p("M78,34 L78,14 L89,24 L100,7 L111,24 L122,14 L122,34 Z", GOLD.base));
-    S.push(p("M78,29 C87,35 113,35 122,29 L122,38 C113,44 87,44 78,38 Z", GOLD.dark));
-    S.push(c(89, 22, 2.6, "#8E3230", { sw: 1.1 }));
-    S.push(c(100, 14, 3, "#7FC7D9", { sw: 1.1 }));
-    S.push(c(111, 22, 2.6, "#2F5C43", { sw: 1.1 }));
-    S.push(fold("M83,35 C90,39 98,40 104,40", GOLD.lite, 1.6, 0.7));
+    S.push(p("M80,35 L80,17 L90,25 L100,10 L110,25 L120,17 L120,35 Z", GOLD.base));
+    S.push(p("M80,30 C88,35 112,35 120,30 L120,38 C112,43 88,43 80,38 Z", GOLD.dark));
+    S.push(c(90, 23, 2.4, "#8E3230", { sw: 1.1 }));
+    S.push(c(100, 17, 2.8, "#7FC7D9", { sw: 1.1 }));
+    S.push(c(110, 23, 2.4, "#2F5C43", { sw: 1.1 }));
+    S.push(fold("M84,35 C91,39 98,40 104,40", GOLD.lite, 1.6, 0.7));
   }
   return S;
 }
