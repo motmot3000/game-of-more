@@ -81,6 +81,7 @@ export const TITLES = [
 export const HATS = [
   { id: "no-hat", name: "No Hat", minLevel: 1, price: 0, description: "No hat on your head." },
   { id: "explorer-cap", name: "Goggles", minLevel: 1, price: 15, description: "Cool explorer goggles." },
+  { id: "sunglasses", name: "Sunglasses", minLevel: 2, price: 25, description: "Black cool sunglasses." },
   { id: "feather-beret", name: "Beret", minLevel: 2, price: 20, description: "Green beret with a feather." },
   { id: "wizard-hat", name: "Wizard Hat", minLevel: 3, price: 30, description: "Pointed blue wizard hat." },
   { id: "shadow-hood", name: "Hood", minLevel: 4, price: 40, description: "Warm travel hood." },
@@ -109,6 +110,7 @@ export const FACES = [
   { id: "wink", name: "Wink", minLevel: 2, price: 20, description: "A clever wink." },
   { id: "cool", name: "Cool", minLevel: 3, price: 30, description: "A determined cool face." },
   { id: "smirk", name: "Smart Smile", minLevel: 4, price: 35, description: "A clever adventurer smile." },
+  { id: "evil", name: "Evil Face", minLevel: 5, price: 40, description: "A sneaky villain face." },
   { id: "fierce", name: "Hero Face", minLevel: 6, price: 50, description: "A brave and focused look." },
   { id: "star-eyes", name: "Star Eyes", minLevel: 8, price: 70, description: "Eyes shining like bright stars." },
   { id: "transcendent", name: "Gold Eyes", minLevel: 10, price: 90, description: "Golden glowing eyes." }
