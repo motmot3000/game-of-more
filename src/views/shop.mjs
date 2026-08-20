@@ -90,11 +90,10 @@ function renderShopItem(item, pupil) {
     state = "equip";
   }
 
-  const meta = locked
-    ? `Unlocks at level ${item.minLevel}`
-    : item.price
-      ? `${item.price} coins`
-      : "Free";
+  // Un article verrouillé annonce aussi son prix : un élève économise pour
+  // ce qu'il convoite, il doit savoir combien avant d'y avoir droit.
+  const price = item.price ? `${item.price} coins` : "Free";
+  const meta = locked ? `Level ${item.minLevel} · ${price}` : price;
 
   return `
     <article class="shop-item rarity-${getItemRarity(item)} ${bespoke ? "is-bespoke" : ""} ${equipped ? "is-equipped" : ""} ${locked ? "is-locked" : ""}">

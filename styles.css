@@ -127,7 +127,8 @@ img {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -189,7 +190,9 @@ select {
   min-height: var(--topbar-h);
   padding-block: env(safe-area-inset-top) 0;
   padding-inline: max(var(--s5), env(safe-area-inset-left)) max(var(--s5), env(safe-area-inset-right));
-  background: rgba(12, 23, 41, 0.96);
+  /* Opaque : le plateau défile dessous et un fond translucide laissait
+     fantômer les prénoms au travers de la barre. */
+  background: var(--surface-3);
   border-bottom: 1px solid var(--line);
 }
 
@@ -630,6 +633,7 @@ select {
 }
 
 .field select,
+.field textarea,
 .inline-form input {
   min-height: 44px;
   padding: 0 var(--s3);
@@ -639,7 +643,15 @@ select {
   color: var(--ink);
 }
 
+/* Le champ libre est le seul multiligne : il garde la même peau que les
+   autres champs, avec une gouttière haute et basse en plus. */
+.field textarea {
+  padding-block: var(--s2);
+  line-height: 1.5;
+}
+
 .field select:focus,
+.field textarea:focus,
 .inline-form input:focus {
   border-color: var(--xp);
   outline: none;
@@ -1015,9 +1027,14 @@ select {
   border-radius: var(--r-sm);
 }
 
+/* La vignette de ligne est un portrait : le héros est dessiné en grand et
+   la fenêtre de 44px ne garde que la tête. `max-width` doit être levé,
+   sinon le SVG se rétrécit à la largeur du cadre et la silhouette entière
+   finit par tenir dedans, minuscule. */
 .row-art .avatar {
   height: 132px;
   width: auto;
+  max-width: none;
   margin-top: -2px;
 }
 
@@ -1484,6 +1501,9 @@ select {
   position: static;
 }
 
+/* Sept catégories ne tiennent pas dans la console : la rangée défile.
+   Le dégradé de droite dit qu'il reste des onglets, la barre de
+   défilement du système ne servirait qu'à alourdir la rangée. */
 .shop-tabs {
   display: flex;
   flex-wrap: nowrap;
@@ -1492,6 +1512,17 @@ select {
   padding-bottom: 2px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.shop-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Le dégradé n'apparaît que là où la rangée déborde vraiment : dans la
+   console, et sur les petits écrans du casier. */
+.console .shop-tabs {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
 }
 
 .shop-tab {
@@ -1685,8 +1716,20 @@ select {
   object-position: center;
 }
 
+/* Le titre tombe sur l'herbe claire du bas de l'image : un voile assure sa
+   lisibilité à toutes les tailles, l'ombre portée seule n'y suffit pas. */
+.banner::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 62%;
+  background: linear-gradient(180deg, transparent, rgba(6, 13, 25, 0.8));
+  pointer-events: none;
+}
+
 .banner-title {
   position: absolute;
+  z-index: 1;
   inset-inline-start: var(--s5);
   bottom: var(--s4);
   font-family: var(--font-display);
@@ -1903,11 +1946,14 @@ select {
   text-wrap: pretty;
 }
 
+/* Les quatre démonstrations tiennent la même colonne : cinq cœurs sont la
+   plus large, elle fixe donc la largeur, sinon la ligne HP décale son
+   intitulé de quelques pixels par rapport aux trois autres. */
 .rules-demo {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  min-width: 96px;
+  min-width: 112px;
 }
 
 .rules-demo .xp-track {
@@ -1994,6 +2040,13 @@ select {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
   overflow: auto;
+}
+
+/* `.dialog-hero` et `.dialog-item` posent un `display`, qui l'emporte sur
+   la règle native `dialog:not([open])`. Sans ce garde-fou, un dialogue
+   fermé mais encore dans le DOM se dessinerait au fil de la page. */
+dialog.dialog:not([open]) {
+  display: none;
 }
 
 .dialog::backdrop {
@@ -2195,15 +2248,17 @@ select {
 
 /* ---------- Toasts ---------- */
 
+/* Côté plateau, pas côté console : un message qui recouvre les boutons
+   d'attribution pendant trois secondes coûte un geste de cours. */
 #toasts {
   position: fixed;
-  right: max(var(--s5), env(safe-area-inset-right));
+  left: max(var(--s5), env(safe-area-inset-left));
   bottom: max(var(--s5), env(safe-area-inset-bottom));
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  align-items: flex-end;
+  align-items: flex-start;
   pointer-events: none;
 }
 
@@ -2223,7 +2278,9 @@ select {
   opacity: 0;
   transform: translateY(10px);
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
-  pointer-events: auto;
+  /* Seul « Undo » se clique : le reste laisse passer le doigt vers ce que
+     le message recouvre. */
+  pointer-events: none;
 }
 
 .toast.is-in {
@@ -2240,6 +2297,7 @@ select {
 
 .toast-undo {
   flex: none;
+  pointer-events: auto;
   min-height: 32px;
   padding: 0 var(--s3);
   font-size: var(--t-xs);
@@ -2262,8 +2320,13 @@ select {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* La console passe sous le plateau : elle garde la largeur d'un panneau
+     plutôt que de s'étirer, sinon « Give XP » fait 900px pour un doigt. */
   .console {
     position: static;
+    width: 100%;
+    max-width: 640px;
+    margin-inline: auto;
     max-height: none;
     overflow: visible;
   }
@@ -2312,6 +2375,28 @@ select {
 
   .console:not(.is-open) .console-body {
     visibility: hidden;
+  }
+
+  /* L'en-tête de la feuille porte déjà le nom : le titre du panneau
+     ferait doublon deux lignes plus bas. */
+  .console-head h2 {
+    display: none;
+  }
+
+  /* Reste « Undo », qui prend la ligne : au pouce, c'est la commande la
+     plus utile en haut de la feuille. */
+  .console-head .btn {
+    flex: 1;
+  }
+
+  /* À trois colonnes, « Restore class » se coupe en deux lignes dans un
+     bouton de 44px : on lui donne la largeur entière. */
+  .hp-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hp-row .btn:last-child {
+    grid-column: 1 / -1;
   }
 
   .console-mobile-toggle {
@@ -2374,6 +2459,10 @@ select {
     padding: var(--s4);
   }
 
+  .locker-shop .shop-tabs {
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
+
   /* Sur petit écran la ligne se plie : portrait et coche tiennent la
      hauteur, les stats s'empilent à droite sans sortir du cadre. */
   .hero-row {
@@ -2417,10 +2506,12 @@ select {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* La console repliée occupe déjà 56px en bas : les messages se posent
+     au-dessus, sinon ils cachent le bouton qui l'ouvre. */
   #toasts {
     right: max(var(--s3), env(safe-area-inset-right));
     left: max(var(--s3), env(safe-area-inset-left));
-    bottom: max(var(--s3), env(safe-area-inset-bottom));
+    bottom: calc(56px + var(--s3) + env(safe-area-inset-bottom));
     align-items: stretch;
   }
 }

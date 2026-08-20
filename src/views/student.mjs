@@ -139,7 +139,7 @@ export function renderStudentLocker(pupil, ui) {
           </div>
 
           <div class="locker-stat">
-            <h3 class="section-label">Purse</h3>
+            <h3 class="section-label">Coins</h3>
             ${renderMoney(pupil.money)}
           </div>
 

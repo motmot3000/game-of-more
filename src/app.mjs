@@ -606,10 +606,13 @@ function showDialog(html) {
   dialog.showModal();
 }
 
+/* `close()` déclenche l'événement qui vide le conteneur, mais seulement au
+   tour suivant : on vide tout de suite pour qu'aucun dialogue fermé ne
+   traîne dans le DOM (ni dans l'arbre d'accessibilité). */
 function closeDialog() {
   const dialog = dialogRoot.querySelector("dialog");
   if (dialog?.open) dialog.close();
-  else dialogRoot.innerHTML = "";
+  dialogRoot.innerHTML = "";
 }
 
 function disarmDanger() {
