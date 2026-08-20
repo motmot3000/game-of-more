@@ -237,12 +237,13 @@ function renderActivityPanel(events, open) {
 
 function renderEvent(event) {
   const time = new Date(event.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const positive = event.amount > 0;
+  const amount = Number(event.amount) || 0;
+  const positive = amount > 0;
   return `
     <li class="event">
       <time>${time}</time>
       <span>${escapeHtml(event.reason)}</span>
-      <b class="${positive ? "is-gain" : "is-loss"}">${positive ? "+" : ""}${event.amount}</b>
+      <b class="${positive ? "is-gain" : "is-loss"}">${positive ? "+" : ""}${amount}</b>
     </li>
   `;
 }

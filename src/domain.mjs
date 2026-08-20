@@ -198,7 +198,12 @@ export function normalizeState(rawState) {
           : []
       };
     }),
-    events: Array.isArray(rawState.events) ? rawState.events : []
+    events: Array.isArray(rawState.events)
+      ? rawState.events
+        .filter((event) => event && typeof event === "object")
+        .map(normalizeEvent)
+        .slice(0, 80)
+      : []
   };
 
   if (!getClassById(state, state.activeClassId)) {
@@ -644,6 +649,18 @@ function appendEvent(state, event) {
       },
       ...state.events
     ].slice(0, 80)
+  };
+}
+
+function normalizeEvent(event) {
+  const amount = Number(event.amount);
+  return {
+    id: String(event.id || cryptoId()),
+    at: Number.isNaN(Date.parse(event.at)) ? new Date().toISOString() : String(event.at),
+    type: String(event.type || "event"),
+    pupilIds: Array.isArray(event.pupilIds) ? event.pupilIds.map(String) : [],
+    amount: Number.isFinite(amount) ? amount : 0,
+    reason: String(event.reason || "Activity")
   };
 }
 

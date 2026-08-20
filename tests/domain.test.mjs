@@ -289,6 +289,23 @@ test("normalizeState drops selection ids that no longer exist", () => {
   assert.deepEqual(normalized.selectedPupilIds, [pupilId]);
 });
 
+test("normalizeState sanitizes imported activity amounts", () => {
+  const state = createInitialState();
+  const normalized = normalizeState({
+    ...state,
+    events: [{
+      id: "unsafe",
+      at: new Date().toISOString(),
+      type: "money",
+      pupilIds: [],
+      amount: "<img src=x onerror=alert(1)>",
+      reason: "Imported"
+    }]
+  });
+  assert.equal(normalized.events[0].amount, 0);
+  assert.equal(normalized.events[0].reason, "Imported");
+});
+
 test("normalizeState migrates legacy CP/VIP classes to 7P/8P", () => {
   const state = createInitialState();
   const legacy = {

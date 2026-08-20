@@ -462,7 +462,7 @@ function heroShapes(opt) {
 
   /* Les longueurs tombent DERRIÈRE la tête : la nuque les cache à la racine
      et elles n'empiètent jamais sur le visage. */
-  if (head !== "helm") H.push(...backHair(cut, opt.girl));
+  if (head !== "helm" && head !== "hood") H.push(...backHair(cut, opt.girl));
 
   if (head === "hood") H.push(p("M72,58 C68,24 84,6 100,6 C116,6 132,24 128,58 C128,76 121,94 112,102 L88,102 C79,94 72,76 72,58 Z", CLOAK.base));
   H.push(p("M100,22 C116,22 124,35 123,51 C122,68 113,80 100,84 C87,80 78,68 77,51 C76,35 84,22 100,22 Z", T.base));
@@ -640,7 +640,7 @@ function hairShapes(cut, head, girl) {
 
   const capped = head === "wizard" || head === "crown";
   if (capped) {
-    const S = underHat(girl);
+    const S = cut === "boucle" ? [] : underHat(girl);
     if (cut === "boucle") {
       S.push(c(74, 46, 7, HAIR.base), c(126, 46, 7, HAIR.dark));
       S.push(c(77, 58, 5.5, HAIR.base), c(123, 58, 5.5, HAIR.dark));

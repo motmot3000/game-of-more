@@ -1501,9 +1501,7 @@ textarea {
   position: static;
 }
 
-/* Sept catégories ne tiennent pas dans la console : la rangée défile.
-   Le dégradé de droite dit qu'il reste des onglets, la barre de
-   défilement du système ne servirait qu'à alourdir la rangée. */
+/* Sept catégories ne tiennent pas dans la console : la rangée défile. */
 .shop-tabs {
   display: flex;
   flex-wrap: nowrap;
@@ -1512,17 +1510,11 @@ textarea {
   padding-bottom: 2px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 .shop-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-/* Le dégradé n'apparaît que là où la rangée déborde vraiment : dans la
-   console, et sur les petits écrans du casier. */
-.console .shop-tabs {
-  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  height: 4px;
 }
 
 .shop-tab {
@@ -2357,6 +2349,9 @@ dialog.dialog:not([open]) {
 
   .console {
     position: fixed;
+    width: auto;
+    max-width: none;
+    margin-inline: 0;
     inset-inline: max(var(--s3), env(safe-area-inset-left)) max(var(--s3), env(safe-area-inset-right));
     top: auto;
     bottom: 0;
@@ -2457,10 +2452,6 @@ dialog.dialog:not([open]) {
   .locker-hero {
     grid-template-columns: minmax(0, 1fr);
     padding: var(--s4);
-  }
-
-  .locker-shop .shop-tabs {
-    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
   }
 
   /* Sur petit écran la ligne se plie : portrait et coche tiennent la

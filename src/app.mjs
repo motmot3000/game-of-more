@@ -535,7 +535,7 @@ function giveMoney(amount) {
   const targets = getTargets();
   if (!targets.length || !Number.isFinite(amount) || amount < 1) return;
   targets.forEach((id) => pendingFlash.add(id));
-  commit(awardMoney(state, targets, amount, "Teacher money"));
+  commit(awardMoney(state, targets, amount, "Teacher coins"));
   toast(`+${amount} coins · ${describeTargets(targets)}`, "coin");
 }
 
@@ -835,6 +835,9 @@ window.addEventListener("pagehide", () => {
   if (!localDirty) return;
   clearTimeout(persistTimer);
   persistTimer = null;
+  // Never race a newer keepalive write against an older request already in flight.
+  // The dirty localStorage copy will be retried on the next visit.
+  if (saveInFlight) return;
   try {
     fetch(apiUrl("state"), {
       method: "PUT",

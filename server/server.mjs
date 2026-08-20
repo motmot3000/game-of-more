@@ -37,13 +37,14 @@ function parseStateFile(filePath) {
   return state;
 }
 
-function latestBackup() {
+function backupFiles() {
   if (!fs.existsSync(BACKUP_DIR)) return null;
-  const files = fs
+  return fs
     .readdirSync(BACKUP_DIR)
     .filter((name) => name.startsWith("state-") && name.endsWith(".json"))
-    .sort();
-  return files.length ? path.join(BACKUP_DIR, files.at(-1)) : null;
+    .sort()
+    .reverse()
+    .map((name) => path.join(BACKUP_DIR, name));
 }
 
 function readState() {
@@ -51,13 +52,17 @@ function readState() {
     try {
       return parseStateFile(STATE_FILE);
     } catch {
-      const backup = latestBackup();
-      if (!backup) return null;
-      try {
-        return parseStateFile(backup);
-      } catch {
-        return null;
-      }
+      // Continue through the backups below.
+    }
+  }
+
+  for (const backup of backupFiles() || []) {
+    try {
+      const state = parseStateFile(backup);
+      console.warn(`Recovered state from backup: ${backup}`);
+      return state;
+    } catch {
+      // Try the next older backup.
     }
   }
   return null;
@@ -130,9 +135,19 @@ function readBody(req, limit = 10 * 1024 * 1024) {
 function isBlockedPath(resolved) {
   const relative = path.relative(PUBLIC_DIR, resolved);
   if (relative.startsWith("..")) return true;
+
+  const isWithin = (directory) => {
+    const candidate = path.relative(path.resolve(directory), resolved);
+    return candidate === "" || (!candidate.startsWith("..") && !path.isAbsolute(candidate));
+  };
+  if (isWithin(DATA_DIR) || isWithin(BACKUP_DIR)) return true;
+
   const parts = relative.split(path.sep);
   if (parts[0] === "server" || parts[0] === ".git" || parts[0] === "node_modules") return true;
-  return false;
+  return relative !== "index.html"
+    && relative !== "styles.css"
+    && parts[0] !== "assets"
+    && parts[0] !== "src";
 }
 
 function serveStatic(req, res, pathname) {
@@ -145,17 +160,14 @@ function serveStatic(req, res, pathname) {
     return;
   }
 
-  if (isBlockedPath(resolved)) {
-    res.writeHead(404);
-    res.end("Not found");
-    return;
-  }
-
   if (!fs.existsSync(resolved) || fs.statSync(resolved).isDirectory()) {
     // SPA fallback: unknown routes serve the app shell.
     const index = path.join(PUBLIC_DIR, "index.html");
     if (fs.existsSync(index)) {
-      res.writeHead(200, { "Content-Type": MIME[".html"] });
+      res.writeHead(200, {
+        "Content-Type": MIME[".html"],
+        "Cache-Control": "no-cache"
+      });
       if (req.method === "HEAD") {
         res.end();
         return;
@@ -168,15 +180,21 @@ function serveStatic(req, res, pathname) {
     return;
   }
 
+  if (isBlockedPath(resolved)) {
+    res.writeHead(404);
+    res.end("Not found");
+    return;
+  }
+
   // Le HTML, la feuille de style et les modules forment un tout : les
   // garder une heure en cache livrerait un mélange d'ancien et de neuf
   // après un déploiement. Seules les images, jamais modifiées en place,
   // gardent un cache long.
   const ext = path.extname(resolved).toLowerCase();
-  const revalidate = ext === ".html" || ext === ".css" || ext === ".mjs" || ext === ".js";
+  const cacheable = new Set([".svg", ".jpg", ".jpeg", ".png", ".webp", ".ico"]);
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
-    "Cache-Control": revalidate ? "no-cache" : "public, max-age=3600"
+    "Cache-Control": cacheable.has(ext) ? "public, max-age=3600" : "no-cache"
   });
   if (req.method === "HEAD") {
     res.end();
