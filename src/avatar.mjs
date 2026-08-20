@@ -127,6 +127,120 @@ const fold = (d, stroke, sw = 1.3, opacity = 0.5) =>
 const ao = (d, opacity = 0.16) =>
   ({ tag: "path", a: { d, opacity }, fill: "#160F0B", noStroke: true });
 
+/* ---------- membres ----------
+   Un bras n'est pas un chemin dessiné à la main : c'est trois articulations
+   {x, y, w} — épaule, coude, poignet — dont le contour est GÉNÉRÉ. La
+   largeur décroît donc toujours du deltoïde au poignet, les deux bras
+   restent cohérents, et changer une pose se fait en déplaçant un point.
+   Le coude apparaît tout seul : c'est ce qui manquait aux bras-nouilles. */
+
+const rnd = (n) => Math.round(n * 10) / 10;
+
+/* Catmull-Rom fermé : une suite de points devient un contour lisse. */
+function smoothClosed(pts, tension = 0.9) {
+  const n = pts.length;
+  const k = tension / 6;
+  let d = `M${rnd(pts[0][0])},${rnd(pts[0][1])}`;
+  for (let i = 0; i < n; i++) {
+    const a = pts[(i - 1 + n) % n], b = pts[i], c2 = pts[(i + 1) % n], d2 = pts[(i + 2) % n];
+    d += `C${rnd(b[0] + (c2[0] - a[0]) * k)},${rnd(b[1] + (c2[1] - a[1]) * k)}`
+       + ` ${rnd(c2[0] - (d2[0] - b[0]) * k)},${rnd(c2[1] - (d2[1] - b[1]) * k)}`
+       + ` ${rnd(c2[0])},${rnd(c2[1])}`;
+  }
+  return `${d}Z`;
+}
+
+/* Tangente unitaire en chaque articulation. */
+function limbAxis(joints) {
+  return joints.map((j, i) => {
+    const a = joints[i - 1] || j, b = joints[i + 1] || j;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return [dx / len, dy / len];
+  });
+}
+
+function limbPath(joints) {
+  if (joints.length < 2) return "M0,0";
+  const ax = limbAxis(joints);
+  const side = (sign) => joints.map((j, i) => [
+    j.x - sign * ax[i][1] * j.w / 2,
+    j.y + sign * ax[i][0] * j.w / 2
+  ]);
+  const first = joints[0], last = joints[joints.length - 1], la = ax[ax.length - 1];
+  /* Les deux bouts sont arrondis par un point de calotte : pas de coupe nette
+     à l'épaule ni au poignet. */
+  const capStart = [first.x - ax[0][0] * first.w / 2, first.y - ax[0][1] * first.w / 2];
+  const capEnd = [last.x + la[0] * last.w / 2, last.y + la[1] * last.w / 2];
+  return smoothClosed([...side(1), capEnd, ...side(-1).reverse(), capStart]);
+}
+
+const limb = (joints, fill, o = {}) => p(limbPath(joints), fill, o);
+
+/* Un pli qui suit le bras, décalé d'un côté : c'est lui qui creuse le coude. */
+function limbCrease(joints, stroke, sign = 1) {
+  const ax = limbAxis(joints);
+  const o = joints.map((j, i) => [
+    j.x - sign * ax[i][1] * j.w * 0.26,
+    j.y + sign * ax[i][0] * j.w * 0.26
+  ]);
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  /* Le pli a besoin d'un coude. Sans lui il n'a rien à creuser. */
+  if (o.length < 3) return fold("M0,0", stroke, 1.25, 0);
+  const s = lerp(o[0], o[1], 0.38), e2 = lerp(o[1], o[2], 0.72);
+  return fold(`M${rnd(s[0])},${rnd(s[1])} Q${rnd(o[1][0])},${rnd(o[1][1])} ${rnd(e2[0])},${rnd(e2[1])}`, stroke, 1.25, 0.42);
+}
+
+/* Manchette : un tronçon large posé sur le poignet, généré depuis le même
+   axe que le bras — elle ne peut donc pas glisser. */
+function bracer(joints, fill) {
+  const w = joints[joints.length - 1], e = joints[joints.length - 2];
+  const dx = w.x - e.x, dy = w.y - e.y, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  return limb([
+    { x: w.x - ux * 11, y: w.y - uy * 11, w: w.w + 3 },
+    { x: w.x + ux * 2, y: w.y + uy * 2, w: w.w + 2 }
+  ], fill);
+}
+
+/* Angle du poignet : la main s'aligne sur l'avant-bras, jamais posée droite
+   au bout d'un bras penché. 0° = doigts vers le bas. */
+function wristAngle(joints) {
+  const w = joints[joints.length - 1], e = joints[joints.length - 2];
+  return Math.atan2(-(w.x - e.x), w.y - e.y) * 180 / Math.PI;
+}
+
+/* ---------- la main ----------
+   Dessinée UNE fois dans son repère propre (poignet à l'origine, doigts vers
+   le bas), puis posée par une transformation. Deux états seulement :
+   « ouverte » (au repos, doigts à peine refermés) et « poing » (serrée
+   autour d'un manche vertical). Dans le poing, le manche passe DERRIÈRE la
+   masse : ce sont trois sillons et un pouce en travers qui disent la prise,
+   pas des doigts-saucisses collés à côté de l'objet.                    */
+function handShapes(T, { x, y, rot = 0, flip = false, fist = false, dark = false }) {
+  const tf = `translate(${rnd(x)} ${rnd(y)}) rotate(${rnd(rot)}) scale(${flip ? -1.07 : 1.07} 1.07)`;
+  const skin = dark ? T.dark : T.base;
+  const S = fist ? [
+    p("M-7,-0.6 C-8.8,3 -8.8,11.6 -6.4,15 C-4,18.2 4,18.2 6.4,15 C8.8,11.6 8.8,3 7,-0.6 Z", skin),
+    fold("M-7.4,4.6 C-3,3.2 3,3.4 7.2,4.8", T.line, 1.1, 0.5),
+    fold("M-7.7,9.2 C-3.2,7.9 3,8.1 7.5,9.5", T.line, 1.1, 0.44),
+    fold("M-6.9,13.6 C-2.8,12.4 2.6,12.6 6.7,13.9", T.line, 1.05, 0.38),
+    p("M-8.6,11.4 C-9.2,7 -4.8,3.2 0.4,3.6 C3.8,3.9 4.2,7.6 1,8.7 C-2.4,9.8 -4.8,11.8 -5.8,14 Z", skin, { sw: 1.2 })
+  ] : [
+    p("M-6.1,-0.8 C-7.9,3.6 -7.7,11.4 -5.1,15 C-2.5,18.4 2.9,18.4 5.5,15 C7.9,11.4 7.7,3.6 6.1,-0.8 Z", skin),
+    fold("M-5.7,4 C-2,2.6 2.3,2.6 5.8,4.2", T.line, 1.1, 0.45),
+    fold("M-1.9,6.4 C-2.3,10.2 -2.3,13.6 -1.7,16.4", T.line, 0.95, 0.5),
+    fold("M2.1,6.4 C2.5,10.2 2.5,13.6 1.9,16.2", T.line, 0.95, 0.42),
+    p("M-6,1.2 C-9.9,2.2 -11.3,6.6 -9.3,9.6 C-7.8,11.8 -5.2,10.8 -4.9,7.8 Z", skin, { sw: 1.2 })
+  ];
+  return S.map((s) => ({ ...s, a: { ...s.a, transform: tf } }));
+}
+
+/* Point de préhension unique. TOUT objet tenu est ancré ici et le poignet
+   vient s'y poser : c'est ce qui rend impossible une lanterne qui flotte à
+   côté d'une main vide. */
+const GRIP = { x: 147, y: 200 };
+
 function attrs(a) {
   return Object.entries(a).map(([k, v]) => `${k}="${v}"`).join(" ");
 }
@@ -186,27 +300,19 @@ function heroShapes(opt) {
     S.push(fold("M44,300 C74,312 126,312 156,300", CLOAK.lite, 1.4, 0.35));
   }
 
-  /* --- bras arrière : sans objet il tombe naturellement; avec équipement,
-         il se replie pour tenir le bouclier ou stabiliser la posture. */
-  if (hand === "none") {
-    S.push(p("M68,107 C57,109 50,117 47,130 C45,141 46,154 48,166 L63,168 C64,155 64,143 64,133 C65,126 69,121 74,119 Z", sleeve));
-    S.push(fold("M53,122 C49,136 51,151 54,163", C.line, 1.25, 0.42));
-    S.push(p("M47,161 C52,164 58,164 64,161 L65,176 C60,179 53,179 48,176 Z", LEATHER.dark));
-    S.push(fold("M50,169 C54,171 60,171 63,169", LEATHER.lite, 1.2, 0.5));
-    S.push(p("M50,174 C53,172 60,173 62,176 L63,187 L62,201 C61,206 58,209 55,209 C51,209 48,206 48,201 L49,187 L47,181 C46,178 47,176 50,174 Z", T.dark));
-    S.push(fold("M52,190 L52,204", T.line, 0.95, 0.56));
-    S.push(fold("M56,189 L56,206", T.line, 0.95, 0.5));
-    S.push(fold("M60,188 L60,202", T.line, 0.9, 0.44));
-    S.push(p("M49,178 C45,178 43,182 45,185 C46,187 49,186 51,184 Z", T.dark, { sw: 1.25 }));
-  } else {
-    S.push(p("M68,107 C57,109 49,116 45,128 C42,137 46,148 51,157 L65,151 C62,144 60,137 62,131 C64,125 69,121 74,119 Z", sleeve));
-    S.push(fold("M51,124 C48,133 51,143 56,151", C.line, 1.25, 0.42));
-    S.push(p("M49,152 L64,146 L70,158 L55,166 Z", LEATHER.dark));
-    S.push(fold("M53,155 L64,151", LEATHER.lite, 1.3, 0.5));
-    S.push(p("M56,163 C60,160 65,161 68,165 L73,174 L78,178 C81,181 81,185 78,188 C75,191 70,190 68,187 L64,182 L60,178 C56,175 53,170 54,167 C54,165 55,164 56,163 Z", T.dark));
-    S.push(fold("M69,176 C72,178 75,180 78,181", T.line, 1.15, 0.6));
-    S.push(fold("M66,181 C69,184 72,185 75,185", T.line, 1.05, 0.46));
-  }
+  /* --- bras arrière. Il tombe TOUJOURS de la même façon, sauf s'il porte
+         l'écu : une seule pose à régler, donc une pose juste. Poussé avant le
+         torse, la tunique lui mange l'épaule — c'est ce qui le met derrière. */
+  const backArm = hand === "shield"
+    ? [{ x: 72, y: 112, w: 25 }, { x: 47, y: 152, w: 20.5 }, { x: 44, y: 188, w: 13 }]
+    : [{ x: 72, y: 112, w: 25 }, { x: 56, y: 159, w: 20.5 }, { x: 49, y: 198, w: 13 }];
+  S.push(limb(backArm, sleeve));
+  S.push(limbCrease(backArm, C.line, -1));
+  S.push(bracer(backArm, LEATHER.dark));
+  S.push(...handShapes(T, {
+    x: backArm[2].x, y: backArm[2].y + 2, rot: wristAngle(backArm),
+    flip: true, fist: hand === "shield", dark: true
+  }));
 
   /* --- chausses. Sans grèves la botte s'arrête au mollet : une tige qui
          monte au genou lit comme une cuissarde, pas comme un aventurier. */
@@ -215,13 +321,6 @@ function heroShapes(opt) {
   S.push(p(`M128,182 L132,${legEnd} L108,${legEnd} L106,182 Z`, HOSE.dark));
   S.push(fold(`M80,196 C78,224 77,${legEnd - 22} 78,${legEnd - 4}`, HOSE.line, 1.2, 0.45));
   S.push(fold(`M120,196 C122,224 123,${legEnd - 22} 122,${legEnd - 4}`, HOSE.line, 1.2, 0.45));
-
-  /* --- fourreau, glissé derrière le pan de tunique : seule la bouterolle
-         dépasse sous l'ourlet, la hanche reste lisible. */
-  if (hand === "sword") {
-    S.push(p("M70,196 L80,193 L56,300 C55,307 50,310 46,309 C42,308 40,303 42,297 Z", LEATHER.base));
-    S.push(p("M47,288 L59,291 L56,300 C55,307 50,310 46,309 C42,308 40,303 42,297 Z", STEEL.base));
-  }
 
   /* --- bottes */
   const bootTop = opt.greaves ? 252 : 290;
@@ -302,6 +401,22 @@ function heroShapes(opt) {
   S.push(fold("M78,200 C72,230 69,254 70,273", C.line, 1.3, 0.5));
   S.push(fold("M122,200 C128,230 131,254 130,273", C.line, 1.3, 0.5));
 
+  /* --- fourreau. Le ceinturon se porte PAR-DESSUS la tunique : dessiné après
+         les pans, on voit le fourreau entier. Glissé derrière, il n'en
+         dépassait qu'un bout sous l'ourlet — un bâton sans propriétaire. */
+  if (hand === "sword") {
+    S.push(p("M63,205 L75,203 L58,284 C57,291 52,294 48,293 C44,292 42,287 44,281 Z", LEATHER.dark));
+    S.push(fold("M66,212 L51,279", LEATHER.lite, 1.3, 0.38));
+    S.push(p("M47,271 L59,273 L58,284 C57,291 52,294 48,293 C44,292 42,287 44,281 Z", STEEL.dark));
+    S.push(p("M62,203 L76,201 L77,210 L63,212 Z", LEATHER.base));
+    S.push(p("M60,238 L72,236 L71,245 L59,247 Z", LEATHER.base));
+  }
+  if (hand === "daggers") {
+    S.push(p("M66,203 L78,200 L72,236 L62,238 Z", LEATHER.base));
+    S.push(p("M68,196 L79,193 L80,201 L69,204 Z", LEATHER.dark));
+    S.push(c(74, 192, 3.4, GOLD.dark, { sw: 1.1 }));
+  }
+
   /* --- mantelet d'épaules : la marque du rôdeur */
   if (opt.mantle) {
     /* Un ourlet découpé, pas un bord rond : c'est le découpage qui fait lire
@@ -316,11 +431,11 @@ function heroShapes(opt) {
 
   /* --- écu, tenu par le bras arrière */
   if (hand === "shield") {
-    S.push(p("M18,140 L78,140 L76,181 C76,207 60,223 48,231 C36,223 20,207 20,181 Z", C.dark));
-    S.push(p("M24,146 L72,146 L70,180 C70,201 58,214 48,221 C38,214 26,201 26,180 Z", "none", { stroke: GOLD.base, sw: 3.2 }));
-    S.push(p("M26,158 L48,172 L70,158 L70,168 L48,182 L26,168 Z", C.lite));
-    S.push(c(48, 190, 9, STEEL.base));
-    S.push(c(45.5, 187.5, 3.2, STEEL.lite, { noStroke: true }));
+    S.push(p("M14,168 L70,168 L68,206 C68,231 53,247 42,254 C31,247 16,231 16,206 Z", C.dark));
+    S.push(p("M20,174 L64,174 L62,205 C62,225 52,238 42,244 C32,238 22,225 22,205 Z", "none", { stroke: GOLD.base, sw: 3.2 }));
+    S.push(p("M22,186 L42,199 L62,186 L62,196 L42,209 L22,196 Z", C.lite));
+    S.push(c(42, 216, 8.6, STEEL.base));
+    S.push(c(39.6, 213.6, 3, STEEL.lite, { noStroke: true }));
   }
 
   /* --- col, cou, tête */
@@ -365,111 +480,87 @@ function heroShapes(opt) {
     a: { ...shape.a, transform: `${shape.a.transform || ""} translate(-8 -4) scale(1.08)`.trim() }
   })));
 
-  /* La paume du bras arrière repose SUR la ceinture. Le bras reste derrière
-     le torse, mais cette dernière petite forme doit passer au premier plan. */
-  if (hand === "sword" || hand === "staff") {
-    S.push(p("M66,176 C68,172 73,171 77,174 L79,187 C76,190 70,190 67,186 C65,183 64,179 66,176 Z", T.dark));
-    S.push(p("M74,174 L84,174 C87,174 87,178 84,179 L75,179 Z", T.dark, { sw: 1.1 }));
-    S.push(p("M75,179 L85,179 C88,179 88,183 85,184 L75,184 Z", T.dark, { sw: 1.1 }));
-    S.push(p("M75,184 L83,184 C86,184 86,188 83,189 L75,189 Z", T.dark, { sw: 1.1 }));
-    S.push(fold("M76,179 L84,179", T.line, 0.85, 0.55));
-    S.push(fold("M76,184 L84,184", T.line, 0.85, 0.48));
-  }
-
-  /* --- bras avant : main libre repliée vers la ceinture, bras porteur plus
-         vertical. Cette différence de pose rend l'équipement lisible. */
+  /* --- bras avant. Tenir un objet ne change qu'une chose : le poignet vient
+         se poser sur GRIP. Ce qui traverse le poing (hampe, fusée, tranchant)
+         se pousse AVANT lui, ce qui pend en dessous APRÈS. Aucune pièce n'a
+         donc de position propre à régler — plus rien ne peut flotter. */
   const gripping = hand !== "none" && hand !== "shield";
-  if (gripping) {
-    S.push(p("M132,108 C144,109 152,116 156,127 C160,138 158,151 156,162 L154,178 C152,185 143,188 137,181 C135,174 136,164 136,154 L134,135 C133,127 130,118 132,108 Z", sleeve));
-    S.push(fold("M147,119 C153,131 153,146 150,161", C.line, 1.25, 0.4));
-    S.push(p("M136,176 C141,178 149,178 155,175 L155,191 C150,194 143,195 137,192 Z", LEATHER.base));
-    S.push(fold("M140,184 C144,186 150,185 153,183", LEATHER.lite, 1.3, 0.55));
-  } else {
-    S.push(p("M132,108 C144,109 153,117 156,129 C159,140 155,151 148,160 L134,177 L121,164 C127,157 134,150 138,143 C141,136 138,127 133,121 Z", sleeve));
-    S.push(fold("M148,121 C153,133 151,145 144,154", C.line, 1.25, 0.42));
-    S.push(p("M120,160 L136,173 L129,185 L113,172 Z", LEATHER.base));
-    S.push(fold("M119,167 L130,177", LEATHER.lite, 1.3, 0.55));
-  }
+  const frontArm = gripping
+    ? [{ x: 128, y: 112, w: 25 }, { x: 143, y: 156, w: 20.5 }, { x: GRIP.x, y: GRIP.y - 11, w: 13 }]
+    : [{ x: 128, y: 112, w: 25 }, { x: 146, y: 156, w: 20.5 }, { x: 147, y: 205, w: 13 }];
+  S.push(limb(frontArm, sleeve));
+  S.push(limbCrease(frontArm, C.line, 1));
+  S.push(bracer(frontArm, LEATHER.base));
 
-  if (hand === "staff") {
-    S.push(p("M145,88 L153,88 L155,362 L147,362 Z", WOOD.base));
-    S.push(fold("M148,110 C148,190 150,280 150,352", WOOD.line, 1.3, 0.55));
-    S.push(p("M143,120 L154,120 L154,132 L143,132 Z", LEATHER.dark));
-    S.push(p("M136,74 C136,60 158,60 158,74 C158,86 148,92 147,92 C146,92 136,86 136,74 Z", GOLD.dark));
-    S.push(c(147, 72, 12, "#7FC7D9"));
-    S.push(c(143, 68, 4, "#DCF3F8", { noStroke: true }));
-  }
-
-  if (gripping && hand !== "sword" && hand !== "staff") {
-    S.push(c(147, 204, 10, T.base));
-    S.push(fold("M140,201 C144,198 150,198 154,201", T.line, 1.3, 0.55));
-  }
+  const held = [];   /* passe DANS le poing */
+  const hung = [];   /* pend sous le poing */
 
   if (hand === "sword") {
-    S.push(p("M141,222 L149,222 L149,194 L141,194 Z", LEATHER.dark));
-    S.push(c(145, 227, 6, GOLD.base));
-    S.push(p("M128,189 C136,186 154,186 162,189 L162,197 C154,194 136,194 128,197 Z", GOLD.base));
-    S.push(p("M138,188 L152,188 L150,112 L145,97 L140,112 Z", STEEL.base));
-    S.push(fold("M145,184 L145,116", STEEL.dark, 2.2, 0.55));
-    S.push(fold("M141.5,184 L143,118", STEEL.lite, 1.8, 0.85));
-  } else if (hand === "lantern") {
-    S.push(p("M144,182 L150,182 L152,242 L142,242 Z", STEEL.dark));
-    S.push(c(147, 212, 11, "#FFD54F"));
-    S.push(c(147, 212, 5.5, "#FFF9C4", { noStroke: true }));
-    S.push(p("M139,200 L155,200 L153,224 L141,224 Z", "none", { sw: 1.5, stroke: GOLD.base }));
-    S.push(p("M147,176 C142,176 140,184 147,186", "none", { sw: 2, stroke: GOLD.dark }));
-  } else if (hand === "grimoire") {
-    S.push(p("M136,170 L162,180 L154,236 L128,224 Z", LEATHER.base));
-    S.push(p("M138,172 L160,181 L153,233 L131,223 Z", "#EDE4D0"));
-    S.push(p("M132,176 L158,186 L150,238 L124,228 Z", LEATHER.dark));
-    S.push(c(144, 206, 5, GOLD.base));
-    S.push(p("M144,212 L144,242", "#8E3230", { sw: 2 }));
-  } else if (hand === "daggers") {
-    S.push(p("M138,188 L146,188 L142,126 Z", STEEL.base));
-    S.push(p("M134,188 L150,188", GOLD.dark, { sw: 2 }));
-    S.push(p("M140,188 L144,210", LEATHER.dark, { sw: 2.4 }));
-    S.push(p("M148,194 L154,194 L158,150 Z", STEEL.base));
-  } else if (hand === "scepter") {
-    S.push(p("M144,70 L150,70 L153,350 L147,350 Z", GOLD.base));
-    S.push(c(147, 62, 12, "#7FC7D9"));
-    S.push(c(147, 62, 5, "#FFFFFF", { noStroke: true }));
-    S.push(e(147, 62, 16, 6, "none", { sw: 1.8, stroke: GOLD.lite }));
-  } else if (hand === "relic") {
-    S.push(p("M132,180 L160,180 L146,155 Z", GOLD.base));
-    S.push(p("M132,180 L160,180 L146,205 Z", GOLD.dark));
-    S.push(c(146, 180, 6, "#7FC7D9"));
-    S.push(c(146, 180, 2.5, "#FFFFFF", { noStroke: true }));
-  } else if (hand === "bespoke") {
-    S.push(p("M134,178 L158,178 L146,152 Z", GOLD.base));
-    S.push(p("M134,178 L158,178 L146,204 Z", GOLD.dark));
-    S.push(c(146, 178, 6.5, "#FF5A5F"));
-    S.push(c(146, 178, 2.5, "#FFF6E6", { noStroke: true }));
-  }
-
-  if (hand === "sword") {
-    S.push(p("M137,194 C139,191 143,190 147,192 L149,209 C147,213 141,214 138,210 C136,206 135,198 137,194 Z", T.base));
-    S.push(p("M145,194 L153,194 C156,194 156,198 153,199 L146,199 Z", T.base, { sw: 1.25 }));
-    S.push(p("M146,199 L154,199 C157,199 157,203 154,204 L146,204 Z", T.base, { sw: 1.25 }));
-    S.push(p("M146,204 L153,204 C156,204 156,208 153,209 L146,209 Z", T.base, { sw: 1.25 }));
-    S.push(fold("M147,199 L152,199", T.line, 0.9, 0.55));
-    S.push(fold("M147,204 L153,204", T.line, 0.9, 0.5));
-    S.push(p("M138,195 C134,196 132,200 134,203 C136,205 139,204 141,202 Z", T.dark, { sw: 1.3 }));
+    held.push(p("M142,182 L152,182 L151,214 L143,214 Z", LEATHER.dark));
+    held.push(fold("M144,188 L150,188", LEATHER.lite, 1.2, 0.5));
+    held.push(p("M128,174 C136,171 158,171 166,174 L165,183 C157,180 137,180 129,183 Z", GOLD.base));
+    held.push(p("M141,176 L153,176 L151,100 L147,80 L143,100 Z", STEEL.base));
+    held.push(fold("M147,172 L147,104", STEEL.dark, 2.2, 0.5));
+    held.push(fold("M143.8,172 L145,106", STEEL.lite, 1.8, 0.8));
+    hung.push(c(147, 216, 6.2, GOLD.base));
+    hung.push(c(145, 214, 2.2, GOLD.lite, { noStroke: true }));
   } else if (hand === "staff") {
-    S.push(p("M138,193 C140,190 145,190 148,192 L150,210 C147,214 141,214 138,210 C136,206 135,197 138,193 Z", T.base));
-    S.push(p("M146,193 L154,193 C158,193 158,197 155,198 L146,198 Z", T.base, { sw: 1.25 }));
-    S.push(p("M146,198 L155,198 C158,198 158,202 155,203 L146,203 Z", T.base, { sw: 1.25 }));
-    S.push(p("M146,203 L155,203 C158,203 158,207 155,208 L146,208 Z", T.base, { sw: 1.25 }));
-    S.push(p("M146,208 L153,208 C156,208 156,212 153,213 L146,213 Z", T.base, { sw: 1.25 }));
-    S.push(fold("M147,198 L154,198", T.line, 0.9, 0.55));
-    S.push(fold("M147,203 L154,203", T.line, 0.9, 0.5));
-    S.push(fold("M147,208 L153,208", T.line, 0.9, 0.44));
-    S.push(p("M138,194 C134,195 132,199 134,202 C136,204 139,203 141,201 Z", T.dark, { sw: 1.3 }));
-  } else {
-    S.push(p("M114,169 C118,167 123,169 127,173 L132,178 C135,181 135,185 132,188 C129,191 124,190 121,187 L116,183 C112,181 109,177 110,174 C110,172 112,170 114,169 Z", T.base));
-    S.push(fold("M119,174 C122,177 126,180 130,181", T.line, 1, 0.58));
-    S.push(fold("M116,178 C120,181 124,184 128,185", T.line, 0.95, 0.5));
-    S.push(p("M113,170 C109,169 106,172 107,175 C108,178 112,178 115,176 Z", T.dark, { sw: 1.3 }));
+    held.push(p("M142,86 L153,86 L155,362 L145,362 Z", WOOD.base));
+    held.push(fold("M148,112 C148,190 150,280 150,352", WOOD.line, 1.3, 0.5));
+    held.push(p("M141,183 L155,183 L155,216 L142,216 Z", LEATHER.dark));
+    held.push(p("M135,70 C135,55 160,55 160,70 C160,83 149,89 147.5,89 C146,89 135,83 135,70 Z", GOLD.dark));
+    held.push(c(147, 68, 12, "#7FC7D9"));
+    held.push(c(143, 64, 4, "#DCF3F8", { noStroke: true }));
+  } else if (hand === "scepter") {
+    held.push(p("M143,124 L152,124 L153,230 L144,230 Z", GOLD.base));
+    held.push(p("M141,182 L155,182 L155,214 L142,214 Z", GOLD.dark));
+    held.push(p("M140,124 L156,124 L154,134 L142,134 Z", GOLD.dark));
+    held.push(c(147, 112, 12, "#7FC7D9"));
+    held.push(c(147, 112, 5, "#FFFFFF", { noStroke: true }));
+    held.push(e(147, 112, 17, 6, "none", { sw: 1.8, stroke: GOLD.lite }));
+    hung.push(p("M141,228 L155,228 L152,240 L144,240 Z", GOLD.dark));
+  } else if (hand === "lantern") {
+    /* L'anse dépasse au-dessus du poing, le fanal pend juste dessous : la
+       main tient quelque chose, et ce quelque chose est accroché à elle. */
+    held.push(p("M147,184 C139,184 137,195 143,199 L151,199 C157,195 155,184 147,184 Z", "none", { sw: 2.6, stroke: STEEL.dark }));
+    hung.push(p("M147,205 L147,212", "none", { sw: 2.4, stroke: STEEL.dark }));
+    hung.push(p("M138,212 L156,212 L154,219 L140,219 Z", STEEL.dark));
+    hung.push(p("M140,219 L154,219 L156,248 L138,248 Z", "#F1CB74"));
+    hung.push(c(147, 233, 7.6, "#FFF3B0", { noStroke: true }));
+    hung.push(fold("M141,222 L141,245", GOLD.lite, 1.4, 0.6));
+    hung.push(fold("M153,222 L153,245", GOLD.dark, 1.4, 0.5));
+    hung.push(p("M136,248 L158,248 L159,256 L135,256 Z", STEEL.dark));
+  } else if (hand === "grimoire") {
+    /* Le poing mord la tranche supérieure : le livre est SOUS les doigts. */
+    held.push(p("M128,194 L166,201 L160,258 L122,249 Z", LEATHER.base));
+    held.push(p("M131,198 L163,204 L158,254 L126,246 Z", "#EDE4D0"));
+    held.push(fold("M134,210 L158,214", "#B9A98C", 1.4, 0.7));
+    held.push(fold("M133,220 L157,224", "#B9A98C", 1.4, 0.6));
+    held.push(p("M122,192 L160,199 L154,257 L116,247 Z", LEATHER.dark));
+    held.push(c(137, 224, 6, GOLD.base));
+    held.push(fold("M137,231 L136,254", "#8E3230", 2.4, 0.9));
+  } else if (hand === "daggers") {
+    held.push(p("M143,185 L151,185 L150,213 L144,213 Z", LEATHER.dark));
+    held.push(p("M133,177 C140,174 154,174 161,177 L160,184 C153,181 141,181 134,184 Z", GOLD.dark));
+    held.push(p("M141,179 L153,179 L151,126 L147,114 L143,126 Z", STEEL.base));
+    held.push(fold("M147,175 L147,128", STEEL.lite, 1.6, 0.7));
+    hung.push(c(147, 215, 4.6, GOLD.base));
+  } else if (hand === "relic" || hand === "bespoke") {
+    /* La relique est sertie sur un court manche : une gemme en lévitation à
+       côté d'une main fermée ne se lit pas comme « tenue ». */
+    const gem = hand === "relic" ? "#7FC7D9" : "#FF5A5F";
+    held.push(p("M143,180 L151,180 L150,213 L144,213 Z", GOLD.dark));
+    held.push(p("M147,138 L164,166 L147,192 L130,166 Z", GOLD.base));
+    held.push(p("M147,147 L157,166 L147,183 L137,166 Z", gem));
+    held.push(c(142.5, 160, 2.8, "#FFFFFF", { noStroke: true }));
+    hung.push(c(147, 216, 4.6, GOLD.base));
   }
+
+  S.push(...held);
+  S.push(...handShapes(T, {
+    x: frontArm[2].x, y: frontArm[2].y + 2, rot: wristAngle(frontArm), fist: gripping
+  }));
+  S.push(...hung);
 
   return S;
 }
@@ -901,16 +992,16 @@ const ITEM_CROPS = {
   face: "76 30 48 52",
   evil: "76 30 48 52",
   hair: "60 2 80 80",
-  weapon: "116 50 72 200",
+  weapon: "116 60 72 190",
   bespoke: "40 40 120 120",
-  "pencil-sword": "116 86 62 156",
-  "word-wand": "126 50 48 168",
-  "star-shield": "8 128 84 116",
-  "lore-lantern": "118 160 60 100",
-  "spell-grimoire": "116 160 64 90",
-  "dual-daggers": "124 110 54 110",
-  "astral-scepter": "120 40 60 180",
-  "wisdom-relic": "116 130 64 90",
+  "pencil-sword": "122 72 52 156",
+  "word-wand": "128 48 40 170",
+  "star-shield": "8 160 68 104",
+  "lore-lantern": "128 178 40 86",
+  "spell-grimoire": "112 186 60 80",
+  "dual-daggers": "126 106 42 118",
+  "astral-scepter": "122 96 50 152",
+  "wisdom-relic": "124 130 46 94",
   "custom-bespoke": "40 40 120 120",
   short: "68 4 64 84",
   long: "60 2 80 144",
