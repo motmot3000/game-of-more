@@ -52,8 +52,11 @@ test("a girl defaults to long hair and keeps her skin tone", () => {
 });
 
 test("faces and hairstyles are shop items", () => {
-  assert.equal(getShopItem("grin")?.type, "face");
-  assert.equal(getShopItem("spiky")?.type, "hair");
+  assert.equal(getShopItem("grin")?.name, "Grin");
+  assert.equal(getShopItem("star-eyes")?.type, "face");
+  assert.equal(getShopItem("braids")?.type, "hair");
+  assert.equal(getShopItem("grammar-mage")?.name, "Star");
+  assert.equal(getShopItem("story-keeper")?.name, "Warrior");
 });
 
 test("XP progression levels up and restores HP", () => {
@@ -148,7 +151,8 @@ test("rewards for a level list unlocks and always mention HP restored above leve
 test("next reward finds the closest upcoming unlock and stops at the top", () => {
   const next = getNextReward(1);
   assert.equal(next.level, 2);
-  assert.equal(getNextReward(5), null);
+  assert.equal(getNextReward(5)?.level, 6);
+  assert.equal(getNextReward(10), null);
 });
 
 test("toggling selection adds and removes a pupil from the bulk selection", () => {

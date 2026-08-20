@@ -1264,14 +1264,15 @@ function getItemTypeLabel(type) {
 }
 
 function getItemRarity(item) {
-  if (item.minLevel >= 4) return "legendary";
-  if (item.minLevel === 3) return "epic";
-  if (item.minLevel === 2) return "uncommon";
+  if (item.minLevel >= 7) return "legendary";
+  if (item.minLevel >= 4) return "epic";
+  if (item.minLevel >= 2) return "uncommon";
   return "common";
 }
 
 function getItemTier(item) {
-  return ["I", "I", "II", "III", "IV", "V"][Math.min(5, Math.max(1, item.minLevel))];
+  const levelBand = Math.floor((Math.max(1, item.minLevel) - 1) / 2);
+  return ["I", "II", "III", "IV", "V"][Math.min(4, levelBand)];
 }
 
 function escapeHtml(value) {

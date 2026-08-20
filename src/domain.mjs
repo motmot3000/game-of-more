@@ -21,20 +21,20 @@ export const SKINS = [
   },
   {
     id: "grammar-mage",
-    name: "Mage",
+    name: "Star",
     minLevel: 3,
     colors: ["#8f6cff", "#ff7b92", "#241a3a"],
-    reward: "Mage outfit",
-    description: "Scholar robes marked with a living rune.",
+    reward: "Star outfit",
+    description: "Star robes marked with a living rune.",
     price: 35
   },
   {
     id: "story-keeper",
-    name: "Keeper",
+    name: "Warrior",
     minLevel: 4,
     colors: ["#ffb545", "#3f8cff", "#2d2638"],
-    reward: "Keeper outfit",
-    description: "Mail, cloak and crest of a veteran storyteller.",
+    reward: "Warrior outfit",
+    description: "Mail, cloak and crest of a brave warrior.",
     price: 55
   }
 ];
@@ -47,31 +47,40 @@ export const TITLES = [
 ];
 
 export const HATS = [
-  { id: "no-hat", name: "No headgear", minLevel: 1, price: 0, description: "Travel with your hair uncovered." },
-  { id: "explorer-cap", name: "Skyglass Goggles", minLevel: 1, price: 15, description: "Brass lenses for distant discoveries." },
-  { id: "wizard-hat", name: "Runesmith Hat", minLevel: 3, price: 30, description: "A scholar's hat set with an azure rune." },
-  { id: "gold-crown", name: "Legend Crown", minLevel: 5, price: 55, description: "A three-gem crown earned at the summit." }
+  { id: "no-hat", name: "No Hat", minLevel: 1, price: 0, description: "Show your hero's hairstyle." },
+  { id: "explorer-cap", name: "Hood", minLevel: 2, price: 15, description: "A light hood for quiet adventures." },
+  { id: "wizard-hat", name: "Wizard Hat", minLevel: 4, price: 30, description: "A pointed hat with a blue gem." },
+  { id: "helmet", name: "Helmet", minLevel: 6, price: 45, description: "A polished helmet for brave heroes." },
+  { id: "gold-crown", name: "King's Crown", minLevel: 8, price: 65, description: "A gold crown set with three gems." }
 ];
 
 export const WEAPONS = [
-  { id: "no-weapon", name: "Empty hands", minLevel: 1, price: 0, description: "Ready for the next discovery." },
-  { id: "pencil-sword", name: "Quillblade", minLevel: 2, price: 20, description: "A bright steel blade for sharp ideas." },
-  { id: "word-wand", name: "Lexicon Staff", minLevel: 3, price: 35, description: "A crystal staff charged with new words." },
-  { id: "star-shield", name: "Story Shield", minLevel: 4, price: 45, description: "A star-crested shield for loyal allies." }
+  { id: "no-weapon", name: "No Item", minLevel: 1, price: 0, description: "Keep both hands free." },
+  { id: "pencil-sword", name: "Sword", minLevel: 2, price: 20, description: "A light sword with a gold guard." },
+  { id: "word-wand", name: "Wand", minLevel: 3, price: 30, description: "A short wand with a glowing crystal." },
+  { id: "star-shield", name: "Shield", minLevel: 4, price: 40, description: "A strong shield with a silver star." },
+  { id: "lantern", name: "Lantern", minLevel: 5, price: 50, description: "A warm lantern for dark paths." },
+  { id: "magic-book", name: "Magic Book", minLevel: 6, price: 60, description: "An open book filled with magic words." },
+  { id: "daggers", name: "Daggers", minLevel: 7, price: 70, description: "Two quick silver daggers." },
+  { id: "scepter", name: "Scepter", minLevel: 8, price: 80, description: "A royal gold scepter with a blue gem." },
+  { id: "custom-item", name: "Custom Item", minLevel: 10, price: 100, description: "A special item made for your hero." }
 ];
 
 export const FACES = [
-  { id: "smile", name: "Calm", minLevel: 1, price: 0, description: "Focused and ready for class." },
-  { id: "grin", name: "Bright grin", minLevel: 1, price: 10, description: "A confident adventurer's smile." },
-  { id: "wink", name: "Quick wink", minLevel: 2, price: 20, description: "For heroes with a clever plan." },
-  { id: "cool", name: "Determined", minLevel: 3, price: 30, description: "A battle-tested look with a small scar." }
+  { id: "smile", name: "Smile", minLevel: 1, price: 0, description: "A calm and friendly smile." },
+  { id: "grin", name: "Grin", minLevel: 2, price: 10, description: "A wide grin for a happy hero." },
+  { id: "wink", name: "Wink", minLevel: 3, price: 20, description: "A quick and clever wink." },
+  { id: "cool", name: "Cool", minLevel: 4, price: 30, description: "A focused look with a small scar." },
+  { id: "star-eyes", name: "Star Eyes", minLevel: 6, price: 50, description: "Bright star-shaped eyes." }
 ];
 
 export const HAIRS = [
-  { id: "short", name: "Side sweep", minLevel: 1, price: 0, description: "A practical explorer cut." },
-  { id: "long", name: "Long trail", minLevel: 1, price: 0, description: "Long hair shaped for the road." },
-  { id: "curly", name: "Cloud curls", minLevel: 2, price: 20, description: "A bold crown of natural curls." },
-  { id: "spiky", name: "Wind swept", minLevel: 3, price: 30, description: "Styled by high-altitude adventures." }
+  { id: "short", name: "Short Hair", minLevel: 1, price: 0, description: "A simple short hairstyle." },
+  { id: "long", name: "Long Hair", minLevel: 1, price: 0, description: "Long hair for every adventure." },
+  { id: "curly", name: "Curly Hair", minLevel: 2, price: 20, description: "A full head of soft curls." },
+  { id: "spiky", name: "Spiky Hair", minLevel: 3, price: 30, description: "Short hair with sharp spikes." },
+  { id: "ponytail", name: "Ponytail", minLevel: 4, price: 40, description: "Long hair tied at the back." },
+  { id: "braids", name: "Braids", minLevel: 6, price: 55, description: "Two neat adventure braids." }
 ];
 
 export const SKIN_TONES = [
