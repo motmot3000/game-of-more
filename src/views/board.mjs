@@ -23,7 +23,7 @@ const LIST_THRESHOLD = 24;
 
 export function renderBoard(classroom, ui, selectedIds) {
   const pupils = filterPupils(classroom.pupils, ui.query);
-  const density = resolveDensity(ui.density, classroom.pupils.length);
+  const density = resolveDensity(ui.density, pupils.length);
 
   return `
     <section class="board" aria-label="${escapeHtml(classroom.name)} roster">
