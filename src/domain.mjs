@@ -30,10 +30,10 @@ export const SKINS = [
   },
   {
     id: "story-keeper",
-    name: "Keeper",
+    name: "Warrior",
     minLevel: 4,
     colors: ["#ffb545", "#3f8cff", "#2d2638"],
-    reward: "Keeper outfit",
+    reward: "Warrior outfit",
     description: "Red armor with a cape.",
     price: 55
   },
@@ -72,7 +72,7 @@ export const TITLES = [
   { id: "pathfinder", name: "Explorer", minLevel: 3, price: 30, description: "For curious students." },
   { id: "grammar-master", name: "Master", minLevel: 4, price: 45, description: "English language master." },
   { id: "class-legend", name: "Legend", minLevel: 5, price: 60, description: "A classroom legend." },
-  { id: "scholar-virtuoso", name: "Scholar", minLevel: 6, price: 70, description: "Always reading books." },
+  { id: "scholar-virtuoso", name: "Star", minLevel: 6, price: 70, description: "A shining star in class." },
   { id: "realm-champion", name: "Champion", minLevel: 7, price: 80, description: "A true class champion." },
   { id: "grand-archon", name: "Leader", minLevel: 8, price: 90, description: "A great team leader." },
   { id: "paragon-sovereign", name: "King", minLevel: 10, price: 100, description: "The supreme title." }
@@ -105,7 +105,7 @@ export const WEAPONS = [
 
 export const FACES = [
   { id: "smile", name: "Smile", minLevel: 1, price: 0, description: "A happy smile." },
-  { id: "grin", name: "Big Grin", minLevel: 1, price: 10, description: "A big confident grin." },
+  { id: "grin", name: "Grin", minLevel: 1, price: 10, description: "A friendly grin." },
   { id: "wink", name: "Wink", minLevel: 2, price: 20, description: "A clever wink." },
   { id: "cool", name: "Cool", minLevel: 3, price: 30, description: "A determined cool face." },
   { id: "smirk", name: "Smart Smile", minLevel: 4, price: 35, description: "A clever adventurer smile." },
