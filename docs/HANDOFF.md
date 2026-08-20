@@ -1,6 +1,6 @@
 # Game of More — note de passation
 
-Dernière mise à jour : 18 août 2026 (fin de journée).
+Dernière mise à jour : 20 août 2026 (passe bras / mains).
 
 ## 1. Où on en est en une phrase
 
@@ -64,7 +64,48 @@ Deux pièges déjà rencontrés :
   `renderItemArt` un compteur.
 
 Les aperçus boutique sont **la même figure recadrée** (table `ITEM_CROPS`) :
-aucune géométrie dupliquée, ce qu'on achète est ce qu'on portera.
+aucune géométrie dupliquée, ce qu'on achète est ce qu'on portera. Déplacer une
+arme oblige donc à corriger son entrée dans `ITEM_CROPS`.
+
+## 4 bis. Bras, mains et objets tenus (passe du 20/08)
+
+Les bras étaient des chemins écrits à la main, un par pose : largeur constante
+(effet nouille), pas de coude, et une main en moufle avec trois doigts-saucisses
+posés à côté de l'objet. Les objets, eux, avaient chacun leurs coordonnées
+propres — la lanterne et le grimoire flottaient à côté d'une main vide.
+
+Trois règles remplacent tout ça. **Les respecter, sinon les défauts reviennent.**
+
+1. **Un bras = trois articulations `{x, y, w}`** (épaule, coude, poignet). Le
+   contour est *généré* par `limbPath` : la largeur décroît toujours du deltoïde
+   au poignet et le coude apparaît tout seul. Changer une pose = déplacer un
+   point, jamais réécrire un `path`. `limbCrease` et `bracer` se calculent sur
+   le même axe, ils ne peuvent donc pas glisser.
+2. **Une seule fonction de main**, `handShapes`, dessinée dans son repère propre
+   (poignet à l'origine, doigts vers le bas) et posée par une transformation.
+   Deux états, pas plus : *ouverte* au repos, *poing* autour d'un manche.
+   `wristAngle` aligne la main sur l'avant-bras.
+3. **Un point de préhension unique**, `GRIP` (147, 200). Tout objet tenu est
+   construit autour de lui, et le poignet du bras avant vient s'y poser. Ce qui
+   traverse le poing (hampe, fusée, tranchant) part dans `held`, poussé AVANT la
+   main ; ce qui pend dessous part dans `hung`, poussé APRÈS. Un objet ne peut
+   plus flotter à côté d'une main.
+
+Autres décisions de cette passe :
+
+- **Le bras arrière a une seule pose** (il tombe), sauf s'il porte l'écu. Une
+  pose unique est une pose qu'on peut régler juste. L'ancien « paume posée sur
+  la ceinture » a disparu.
+- Les deux bras au repos ne sont **pas** l'image miroir l'un de l'autre : même
+  tension des deux côtés, le personnage lit comme un clone.
+- **L'écu descend assez bas pour laisser voir l'épaule et le biceps** au-dessus
+  de son bord. Remonté, il avalait tout le bras et lisait comme collé à la
+  hanche.
+- **Le fourreau se dessine APRÈS les pans de tunique** : un ceinturon se porte
+  par-dessus. Glissé derrière, il n'en dépassait qu'un bout sous l'ourlet — un
+  bâton sans propriétaire.
+- Le sceptre est **court**. Une hampe qui s'arrête au milieu de la jupe lit
+  comme un bâton cassé.
 
 ## 5. Méthode de travail
 
@@ -97,9 +138,12 @@ les oreilles *après* la coiffure.
 - **Une seule silhouette** pour tout le monde, différenciée par coiffure et
   couvre-chef. Question posée à l'utilisateur, **restée sans réponse** — à reposer
   avant d'investir dans une deuxième.
-- **Pose statique et symétrique.** Une pose légèrement décalée gagnerait beaucoup
-  mais complique la paramétrisation.
+- **Pose statique.** Les bras sont maintenant paramétrés par articulations, donc
+  une vraie pose décalée (hanche, épaule) est devenue bon marché : c'est le
+  prochain gain évident.
 - Les épaules de maille peuvent lire comme des épaulettes à petite taille.
+- Les objets tenus n'ont pas de **poids** : ni traction sur le bras, ni
+  inclinaison. Le grimoire et la lanterne y gagneraient.
 - Le catalogue d'objets par niveau reste à définir (côté utilisateur).
 - Les polices viennent de Google Fonts : **hors ligne, la classe retombe sur
   Georgia / system-ui.** Acceptable, mais à héberger en local si l'école coupe le net.
