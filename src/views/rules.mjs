@@ -12,7 +12,7 @@ const QUICK_REFERENCE = [
   ["Do homework", "+100 XP"],
   ["Learn vocabulary", "+150 XP"],
   ["Be nice", "+50 XP"],
-  ["Good grade", "+Money"],
+  ["Good grade", "+Coins"],
   ["Bad behaviour", "-1 HP"]
 ];
 
@@ -43,9 +43,9 @@ export function renderRules() {
           <div>
             <dt>
               <span class="rules-demo">${renderCoinIcon()}</span>
-              Money
+              Coins
             </dt>
-            <dd>Good grades and nice actions earn money. Spend it in the hero shop.</dd>
+            <dd>Good grades and nice actions earn coins. Spend them in the hero shop.</dd>
           </div>
           <div>
             <dt>

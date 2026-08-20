@@ -168,10 +168,15 @@ function serveStatic(req, res, pathname) {
     return;
   }
 
+  // Le HTML, la feuille de style et les modules forment un tout : les
+  // garder une heure en cache livrerait un mélange d'ancien et de neuf
+  // après un déploiement. Seules les images, jamais modifiées en place,
+  // gardent un cache long.
   const ext = path.extname(resolved).toLowerCase();
+  const revalidate = ext === ".html" || ext === ".css" || ext === ".mjs" || ext === ".js";
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
-    "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=3600"
+    "Cache-Control": revalidate ? "no-cache" : "public, max-age=3600"
   });
   if (req.method === "HEAD") {
     res.end();
