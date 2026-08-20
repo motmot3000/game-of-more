@@ -55,6 +55,10 @@ test("a girl defaults to long hair and keeps her skin tone", () => {
 test("faces and hairstyles are shop items", () => {
   assert.equal(getShopItem("grin")?.type, "face");
   assert.equal(getShopItem("spiky")?.type, "hair");
+  assert.equal(getShopItem("sunglasses")?.type, "hat");
+  assert.equal(getShopItem("evil")?.type, "face");
+  assert.equal(getShopItem("story-keeper")?.name, "Warrior");
+  assert.equal(getShopItem("scholar-virtuoso")?.name, "Star");
 });
 
 test("shop item names use simple English for 7P and 8P pupils", () => {

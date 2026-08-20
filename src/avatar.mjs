@@ -80,6 +80,7 @@ const OUTFITS = {
 const HEADGEAR = {
   "no-hat": "none",
   "explorer-cap": "goggles",
+  sunglasses: "sunglasses",
   "feather-beret": "beret",
   "wizard-hat": "wizard",
   "shadow-hood": "hood",
@@ -775,6 +776,14 @@ function faceShapes(face, girl, T) {
     S.push(...eye(92), ...eye(108));
     S.push(brow(92, -1), brow(108, 2));
     S.push(p("M96,69 Q103,67 107,72", "none", { sw: 2, stroke: T.line }));
+  } else if (face === "evil") {
+    S.push(p("M86,49 L98,54", "none", { sw: 3.4, stroke: INK }));
+    S.push(p("M114,49 L102,54", "none", { sw: 3.4, stroke: INK }));
+    S.push(p("M88,45 L98,50", "none", { sw: 2.2, stroke: HAIR.dark }));
+    S.push(p("M112,45 L102,50", "none", { sw: 2.2, stroke: HAIR.dark }));
+    S.push(c(94, 53, 1.8, "#FF2A2A", { noStroke: true }));
+    S.push(c(106, 53, 1.8, "#FF2A2A", { noStroke: true }));
+    S.push(p("M93,68 Q100,74 107,67", "none", { sw: 2.4, stroke: T.line }));
   } else if (face === "fierce") {
     S.push(p("M87,51.5 L97,53", "none", { sw: 3.4, stroke: INK }));
     S.push(p("M103,53 L113,51.5", "none", { sw: 3.4, stroke: INK }));
@@ -805,7 +814,7 @@ function faceShapes(face, girl, T) {
   if (face === "grin") {
     S.push(p("M93.5,68 C97,73.5 103,73.5 106.5,68 Z", "#8A4048", { sw: 1.6 }));
     S.push(p("M94.5,67.5 L105.5,67.5", "none", { sw: 1.6, stroke: "#F7EEDD" }));
-  } else if (face !== "smirk" && face !== "fierce" && face !== "star-eyes" && face !== "transcendent") {
+  } else if (face !== "smirk" && face !== "evil" && face !== "fierce" && face !== "star-eyes" && face !== "transcendent") {
     S.push(p("M95.5,69 Q100,72 104.5,69", "none", { sw: 2, stroke: T.line }));
   }
   return S;
@@ -837,6 +846,12 @@ function headgearShapes(head) {
     S.push(c(111, 29, 6.2, "#80C8D8", { sw: 1.2 }));
     S.push(p("M84,26 C86,23 89,22 92,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
     S.push(p("M106,26 C108,23 111,22 114,23", "none", { sw: 1.8, stroke: "#DDF5F8" }));
+  } else if (head === "sunglasses") {
+    S.push(p("M76,46 L124,46", "none", { sw: 2.4, stroke: "#111111" }));
+    S.push(p("M83,44 L98,44 L97,57 C97,60 84,60 84,57 Z", "#161616", { stroke: "#000000", sw: 1.5 }));
+    S.push(p("M102,44 L117,44 L116,57 C116,60 103,60 103,57 Z", "#161616", { stroke: "#000000", sw: 1.5 }));
+    S.push(fold("M86,46 L95,54", "#FFFFFF", 1.2, 0.45));
+    S.push(fold("M105,46 L114,54", "#FFFFFF", 1.2, 0.45));
   } else if (head === "beret") {
     S.push(p("M70,36 C70,22 90,14 116,18 C128,20 134,28 130,36 C124,40 76,40 70,36 Z", CLOTHS.sinople.base));
     S.push(p("M76,37 C88,41 116,41 126,37", "none", { sw: 2.2, stroke: LEATHER.dark }));
@@ -973,7 +988,9 @@ export function renderHero(pupil) {
 const ITEM_CROPS = {
   outfit: "44 84 112 214",
   hat: "58 0 84 76",
+  sunglasses: "70 30 60 45",
   face: "76 30 48 52",
+  evil: "76 30 48 52",
   hair: "60 2 80 80",
   weapon: "116 60 72 190",
   bespoke: "40 40 120 120",
