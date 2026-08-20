@@ -57,6 +57,34 @@ test("faces and hairstyles are shop items", () => {
   assert.equal(getShopItem("spiky")?.type, "hair");
 });
 
+test("shop item names use simple English for 7P and 8P pupils", () => {
+  const names = {
+    "pencil-sword": "Sword",
+    "word-wand": "Wand",
+    "star-shield": "Shield",
+    "lore-lantern": "Lantern",
+    "spell-grimoire": "Magic Book",
+    "dual-daggers": "Daggers",
+    "astral-scepter": "Scepter",
+    "gold-crown": "King's Crown",
+    "explorer-cap": "Goggles",
+    "wizard-hat": "Wizard Hat",
+    "shadow-hood": "Hood",
+    "steel-helm": "Helmet",
+    short: "Short Hair",
+    long: "Long Hair",
+    ponytail: "Ponytail",
+    braided: "Braids",
+    cool: "Cool",
+    "star-eyes": "Star Eyes",
+    "custom-bespoke": "Custom Item"
+  };
+
+  for (const [id, name] of Object.entries(names)) {
+    assert.equal(getShopItem(id)?.name, name);
+  }
+});
+
 test("XP progression levels up and restores HP", () => {
   let state = createInitialState();
   const pupilId = getCurrentClass(state).pupils[0].id;
