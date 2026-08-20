@@ -547,16 +547,15 @@ function normalizePupil(pupil) {
   const face = FACES.some((item) => item.id === pupil.face) ? pupil.face : "smile";
   const defaultHair = gender === "girl" ? "long" : "short";
   const hair = HAIRS.some((item) => item.id === pupil.hair) ? pupil.hair : defaultHair;
+  const starterItems = SHOP_ITEMS.filter((item) => item.price === 0).map((item) => item.id);
   const ownedItems = [...new Set([
-    "starter",
-    "rookie",
-    "no-hat",
-    "no-weapon",
-    "smile",
-    "short",
-    "long",
+    ...starterItems,
     skin,
     title,
+    hat,
+    weapon,
+    face,
+    hair,
     ...(Array.isArray(pupil.ownedItems) ? pupil.ownedItems.filter((id) => getShopItem(id)) : [])
   ])];
   const customOrders = Array.isArray(pupil.customOrders)

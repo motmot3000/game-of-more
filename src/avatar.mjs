@@ -241,8 +241,19 @@ function handShapes(T, { x, y, rot = 0, flip = false, fist = false, dark = false
    côté d'une main vide. */
 const GRIP = { x: 147, y: 200 };
 
+function escapeXml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function attrs(a) {
-  return Object.entries(a).map(([k, v]) => `${k}="${v}"`).join(" ");
+  return Object.entries(a)
+    .filter(([, v]) => v != null && v !== "")
+    .map(([k, v]) => `${k}="${escapeXml(v)}"`)
+    .join(" ");
 }
 
 function draw(s, stroke) {
@@ -257,7 +268,9 @@ function clipGeom(s) {
 
 let artSeq = 0;
 function safeId(value) {
-  return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "") || `h${++artSeq}`;
+  const base = String(value || "").replace(/[^a-zA-Z0-9_-]/g, "") || "h";
+  const named = /^[A-Za-z]/.test(base) ? base : `h${base}`;
+  return `${named}-${++artSeq}`;
 }
 
 /* Une inversion gauche/droite suffit à casser l'effet « armée de clones »
@@ -936,7 +949,7 @@ function renderFigure(opt) {
   const mirrored = opt.mirror ? "translate(200 0) scale(-1 1)" : "";
   const figure = `<g transform="${mirrored}"><g transform="translate(-3 2) scale(1.03 0.96)">${body}${shading}</g></g>`;
 
-  return `<svg class="${opt.cls || "avatar"}" data-role="${opt.role || "scout"}" viewBox="${opt.viewBox || "0 0 200 360"}" role="img" aria-label="${opt.alt || "hero"}">
+  return `<svg class="${escapeXml(opt.cls || "avatar")}" data-role="${escapeXml(opt.role || "scout")}" viewBox="${escapeXml(opt.viewBox || "0 0 200 360")}" role="img" aria-label="${escapeXml(opt.alt || "hero")}">
     ${defs}${atmosphere}${ground}${figure}
   </svg>`;
 }
@@ -1015,15 +1028,16 @@ const ITEM_CROPS = {
 
 export function renderItemArt(item) {
   if (item.type === "bespoke" || item.id === "custom-bespoke") {
-    return `<svg class="avatar item-art bespoke-art" viewBox="0 0 100 100" role="img" aria-label="${item.name}">
+    const glowId = safeId("bespoke-glow");
+    return `<svg class="avatar item-art bespoke-art" viewBox="0 0 100 100" role="img" aria-label="${escapeXml(item.name)}">
       <defs>
-        <radialGradient id="bespoke-glow" cx="50%" cy="50%" r="50%">
+        <radialGradient id="${glowId}" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stop-color="#FFE082" stop-opacity="0.95"/>
           <stop offset="60%" stop-color="#FFB300" stop-opacity="0.45"/>
           <stop offset="100%" stop-color="#FF8F00" stop-opacity="0"/>
         </radialGradient>
       </defs>
-      <circle cx="50" cy="50" r="46" fill="url(#bespoke-glow)"/>
+      <circle cx="50" cy="50" r="46" fill="url(#${glowId})"/>
       <circle cx="50" cy="50" r="34" fill="#241D15" stroke="#C0913E" stroke-width="2.5"/>
       <polygon points="50,22 58,38 76,42 63,55 66,73 50,64 34,73 37,55 24,42 42,38" fill="#E2BC70" stroke="#8F692A" stroke-width="1.5"/>
       <circle cx="50" cy="50" r="9" fill="#8E3230" stroke="#E2BC70" stroke-width="1.2"/>
@@ -1054,7 +1068,7 @@ export function renderItemArt(item) {
 
   /* « Aucun » n'a rien à montrer : un tiret vaut mieux qu'un aperçu trompeur. */
   if (item.id === "no-hat" || item.id === "no-weapon") {
-    return `<svg class="avatar item-art none" viewBox="0 0 80 80" role="img" aria-label="${item.name}"><line x1="26" y1="40" x2="54" y2="40" stroke="#9A8B78" stroke-width="6" stroke-linecap="round"/></svg>`;
+    return `<svg class="avatar item-art none" viewBox="0 0 80 80" role="img" aria-label="${escapeXml(item.name)}"><line x1="26" y1="40" x2="54" y2="40" stroke="#9A8B78" stroke-width="6" stroke-linecap="round"/></svg>`;
   }
 
   return renderFigure({ ...base, viewBox: ITEM_CROPS[item.id] || ITEM_CROPS[item.type] });

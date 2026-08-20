@@ -18,7 +18,7 @@ const XP_PRESETS = [
 
 const COIN_PRESETS = [10, 20, 30, 50];
 
-export function renderConsole({ classroom, ui, targets, focused, canUndo, events }) {
+export function renderConsole({ classroom, ui, targets, focused, canUndo, events, armedReset = false }) {
   const open = (name) => (ui.openPanels.has(name) ? "open" : "");
 
   return `
@@ -34,7 +34,7 @@ export function renderConsole({ classroom, ui, targets, focused, canUndo, events
     ${renderHeroPanel(focused, ui, open)}
     ${renderRosterPanel(classroom, open)}
     ${renderActivityPanel(events, open)}
-    ${renderDataPanel(open)}
+    ${renderDataPanel(open, armedReset)}
   `;
 }
 
@@ -150,7 +150,7 @@ function renderHeroPanel(pupil, ui, open) {
       <summary>${icon("user")}<span>${escapeHtml(pupil.name)}</span></summary>
 
       <div class="hero-sheet">
-        <button class="hero-sheet-art" type="button" data-action="zoom-pupil" data-pupil-id="${pupil.id}" aria-label="Show ${escapeHtml(pupil.name)} full size" ${heroStageAttributes(pupil)}>
+        <button class="hero-sheet-art" type="button" data-action="zoom-pupil" data-pupil-id="${escapeHtml(pupil.id)}" aria-label="Show ${escapeHtml(pupil.name)} full size" ${heroStageAttributes(pupil)}>
           ${renderHero(pupil)}
         </button>
         <div class="hero-sheet-facts">
@@ -180,7 +180,7 @@ function renderHeroPanel(pupil, ui, open) {
         <button class="btn btn-sm" type="submit">Rename</button>
       </form>
 
-      <button class="btn btn-sm btn-quiet-danger" type="button" data-action="remove-pupil" data-pupil-id="${pupil.id}">
+      <button class="btn btn-sm btn-quiet-danger" type="button" data-action="remove-pupil" data-pupil-id="${escapeHtml(pupil.id)}">
         ${icon("trash")}<span>Remove ${escapeHtml(pupil.name)}</span>
       </button>
     </details>
@@ -247,7 +247,7 @@ function renderEvent(event) {
   `;
 }
 
-function renderDataPanel(open) {
+function renderDataPanel(open, armedReset) {
   return `
     <details class="panel" data-panel="data" ${open("data")}>
       <summary>${icon("download")}<span>Data</span></summary>
@@ -257,7 +257,7 @@ function renderDataPanel(open) {
         <button class="btn btn-sm" type="button" data-action="import">${icon("upload")}<span>Import</span></button>
       </div>
       <hr class="rule" />
-      <button class="btn btn-sm btn-quiet-danger" type="button" data-action="reset-all">${icon("trash")}<span>Erase every class</span></button>
+      <button class="btn btn-sm btn-quiet-danger ${armedReset ? "is-armed" : ""}" type="button" data-action="reset-all">${icon("trash")}<span>${armedReset ? "Tap again to erase everything" : "Erase every class"}</span></button>
     </details>
   `;
 }

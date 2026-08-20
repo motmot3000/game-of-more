@@ -305,6 +305,35 @@ test("normalizeState migrates legacy CP/VIP classes to 7P/8P", () => {
   assert.equal(normalized.activeClassId, "7p");
 });
 
+test("normalizePupil keeps equipped cosmetics even if they are missing from ownedItems", () => {
+  const state = createInitialState();
+  const pupilId = getCurrentClass(state).pupils[0].id;
+  const raw = {
+    ...state,
+    classes: state.classes.map((classroom) => ({
+      ...classroom,
+      pupils: classroom.pupils.map((pupil) => {
+        if (pupil.id !== pupilId) return pupil;
+        return {
+          ...pupil,
+          hat: "explorer-cap",
+          weapon: "pencil-sword",
+          face: "cool",
+          ownedItems: ["starter", "rookie", "no-hat", "no-weapon", "smile", "short", "long"]
+        };
+      })
+    }))
+  };
+  const normalized = normalizeState(raw);
+  const pupil = getPupilById(normalized, pupilId);
+  assert.equal(pupil.hat, "explorer-cap");
+  assert.equal(pupil.weapon, "pencil-sword");
+  assert.equal(pupil.face, "cool");
+  assert.equal(isItemOwned(pupil, "explorer-cap"), true);
+  assert.equal(isItemOwned(pupil, "pencil-sword"), true);
+  assert.equal(isItemOwned(pupil, "cool"), true);
+});
+
 test("normalizePupil migrates the legacy coins field to money", () => {
   const state = createInitialState();
   const pupilId = getCurrentClass(state).pupils[0].id;

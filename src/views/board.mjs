@@ -126,7 +126,7 @@ function renderCard(pupil, selected) {
         class="card-hit"
         type="button"
         data-action="toggle-pupil"
-        data-pupil-id="${pupil.id}"
+        data-pupil-id="${escapeHtml(pupil.id)}"
         aria-pressed="${selected}"
         aria-label="Select ${escapeHtml(pupil.name)}"
       ></button>
@@ -143,7 +143,7 @@ function renderCard(pupil, selected) {
           class="card-zoom"
           type="button"
           data-action="zoom-pupil"
-          data-pupil-id="${pupil.id}"
+          data-pupil-id="${escapeHtml(pupil.id)}"
           aria-label="Show ${escapeHtml(pupil.name)} full size"
         >${icon("expand")}</button>
       </div>
@@ -171,7 +171,7 @@ function renderRow(pupil, selected) {
         class="card-hit"
         type="button"
         data-action="toggle-pupil"
-        data-pupil-id="${pupil.id}"
+        data-pupil-id="${escapeHtml(pupil.id)}"
         aria-pressed="${selected}"
         aria-label="Select ${escapeHtml(pupil.name)}"
       ></button>
@@ -186,7 +186,7 @@ function renderRow(pupil, selected) {
         class="card-zoom"
         type="button"
         data-action="zoom-pupil"
-        data-pupil-id="${pupil.id}"
+        data-pupil-id="${escapeHtml(pupil.id)}"
         aria-label="Show ${escapeHtml(pupil.name)} full size"
       >${icon("expand")}</button>
     </article>

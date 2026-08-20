@@ -102,7 +102,7 @@ function renderShopItem(item, pupil) {
         class="shop-thumb"
         type="button"
         data-action="preview-item"
-        data-item-id="${item.id}"
+        data-item-id="${escapeHtml(item.id)}"
         aria-label="Preview ${escapeHtml(item.name)}"
       >${renderThumb(item)}<span class="item-tier" aria-hidden="true">${getItemTier(item)}</span></button>
       <div class="shop-item-text">
@@ -114,7 +114,7 @@ function renderShopItem(item, pupil) {
         class="btn btn-sm ${state === "buy" ? "btn-primary" : ""}"
         type="button"
         data-action="shop-item"
-        data-item-id="${item.id}"
+        data-item-id="${escapeHtml(item.id)}"
         ${disabled}
       >${label}</button>
     </article>

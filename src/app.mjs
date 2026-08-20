@@ -54,6 +54,9 @@ let state = loadState();
 let history = [];
 let studentPupilId = loadStudentId();
 let persistTimer = null;
+let saveInFlight = false;
+let saveQueued = false;
+let localDirty = false;
 let armedDanger = null;
 const pendingFlash = new Set();
 
@@ -148,7 +151,8 @@ function renderViewBody(view) {
             targets,
             focused,
             canUndo: history.length > 0,
-            events: state.events
+            events: state.events,
+            armedReset: armedDanger === "reset"
           })}
         </div>
       </aside>
@@ -168,7 +172,7 @@ function renderTopbar(view) {
       <nav class="segmented class-tabs" aria-label="Classes">
         ${state.classes.map((classroom) => {
           const active = classroom.id === state.activeClassId;
-          return `<button type="button" class="${active ? "is-active" : ""}" data-action="select-class" data-class-id="${classroom.id}" aria-pressed="${active}">${escapeHtml(classroom.name)}</button>`;
+          return `<button type="button" class="${active ? "is-active" : ""}" data-action="select-class" data-class-id="${escapeHtml(classroom.id)}" aria-pressed="${active}">${escapeHtml(classroom.name)}</button>`;
         }).join("")}
       </nav>
 
@@ -246,7 +250,8 @@ function restoreUiMemory(memory) {
 function flushFlash() {
   if (!pendingFlash.size) return;
   for (const id of pendingFlash) {
-    const card = app.querySelector(`[data-pupil-id="${id}"]`)?.closest(".hero-card, .hero-row");
+    const safe = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : String(id).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const card = app.querySelector(`[data-pupil-id="${safe}"]`)?.closest(".hero-card, .hero-row");
     if (!card) continue;
     card.classList.add("is-flash");
     card.addEventListener("animationend", () => card.classList.remove("is-flash"), { once: true });
@@ -450,15 +455,14 @@ const ACTIONS = {
 
   /* Effacement en deux temps plutôt qu'un confirm() natif : le second
      appui est un choix, pas un réflexe, et la classe voit ce qui se passe. */
-  "reset-all": (el) => {
+  "reset-all": () => {
     if (armedDanger !== "reset") {
       armedDanger = "reset";
-      el.classList.add("is-armed");
-      el.querySelector("span").textContent = "Tap again to erase everything";
+      render();
       setTimeout(disarmDanger, 5000);
       return;
     }
-    disarmDanger();
+    armedDanger = null;
     commit(createInitialState());
     toast("Every class was erased.", "warn", { undo: true });
   }
@@ -663,11 +667,13 @@ function announce(previous, next) {
 }
 
 function saveAndRender() {
+  state = { ...state, updatedAt: new Date().toISOString() };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     toast("Could not save locally: storage is full or blocked.", "error");
   }
+  localDirty = true;
   scheduleServerSave();
   render();
 }
@@ -755,7 +761,11 @@ function dismiss(node) {
 /* ---------- Serveur ---------- */
 
 function scheduleServerSave() {
-  if (persistTimer) return;
+  if (saveInFlight) {
+    saveQueued = true;
+    return;
+  }
+  clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     persistTimer = null;
     saveToServer();
@@ -763,16 +773,28 @@ function scheduleServerSave() {
 }
 
 async function saveToServer() {
+  if (saveInFlight) {
+    saveQueued = true;
+    return;
+  }
+  saveInFlight = true;
+  const snapshot = JSON.stringify(state);
   try {
     const response = await fetch(apiUrl("state"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state)
+      body: snapshot
     });
     if (!response.ok) throw new Error(`save failed: ${response.status}`);
+    if (snapshot === JSON.stringify(state)) localDirty = false;
   } catch {
     // Hors ligne ou sans backend : localStorage suffit, la synchro se fera
     // au prochain chargement réussi.
+  }
+  saveInFlight = false;
+  if (saveQueued) {
+    saveQueued = false;
+    saveToServer();
   }
 }
 
@@ -786,6 +808,13 @@ async function bootstrapFromServer() {
     if (!response.ok) return;
     const remote = await response.json();
     if (!remote || !Array.isArray(remote.classes)) return;
+    if (localDirty) return;
+    const localAt = Date.parse(state.updatedAt || "");
+    const remoteAt = Date.parse(remote.updatedAt || "");
+    if (Number.isFinite(localAt) && (!Number.isFinite(remoteAt) || localAt > remoteAt)) {
+      saveToServer();
+      return;
+    }
     state = normalizeState(remote);
     history = [];
     try {
@@ -798,6 +827,22 @@ async function bootstrapFromServer() {
     // Hors ligne : on garde ce que localStorage contenait.
   }
 }
+
+window.addEventListener("pagehide", () => {
+  if (!localDirty) return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  try {
+    fetch(apiUrl("state"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+      keepalive: true
+    });
+  } catch {
+    // Fermeture de page : localStorage a déjà la copie.
+  }
+});
 
 render();
 bootstrapFromServer();

@@ -30,10 +30,37 @@ function ensureDirs() {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
+function parseStateFile(filePath) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  const state = JSON.parse(raw);
+  if (!state || !Array.isArray(state.classes)) throw new Error("not a Game of More state");
+  return state;
+}
+
+function latestBackup() {
+  if (!fs.existsSync(BACKUP_DIR)) return null;
+  const files = fs
+    .readdirSync(BACKUP_DIR)
+    .filter((name) => name.startsWith("state-") && name.endsWith(".json"))
+    .sort();
+  return files.length ? path.join(BACKUP_DIR, files.at(-1)) : null;
+}
+
 function readState() {
-  if (!fs.existsSync(STATE_FILE)) return null;
-  const raw = fs.readFileSync(STATE_FILE, "utf8");
-  return JSON.parse(raw);
+  if (fs.existsSync(STATE_FILE)) {
+    try {
+      return parseStateFile(STATE_FILE);
+    } catch {
+      const backup = latestBackup();
+      if (!backup) return null;
+      try {
+        return parseStateFile(backup);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 function writeState(state) {
@@ -75,19 +102,37 @@ function sendJson(res, status, payload) {
 function readBody(req, limit = 10 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let settled = false;
     const chunks = [];
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
     req.on("data", (chunk) => {
       size += chunk.length;
       if (size > limit) {
-        reject(new Error("payload too large"));
+        fail(new Error("payload too large"));
         req.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
+    req.on("end", () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    req.on("error", fail);
   });
+}
+
+function isBlockedPath(resolved) {
+  const relative = path.relative(PUBLIC_DIR, resolved);
+  if (relative.startsWith("..")) return true;
+  const parts = relative.split(path.sep);
+  if (parts[0] === "server" || parts[0] === ".git" || parts[0] === "node_modules") return true;
+  return false;
 }
 
 function serveStatic(req, res, pathname) {
@@ -100,11 +145,21 @@ function serveStatic(req, res, pathname) {
     return;
   }
 
+  if (isBlockedPath(resolved)) {
+    res.writeHead(404);
+    res.end("Not found");
+    return;
+  }
+
   if (!fs.existsSync(resolved) || fs.statSync(resolved).isDirectory()) {
     // SPA fallback: unknown routes serve the app shell.
     const index = path.join(PUBLIC_DIR, "index.html");
     if (fs.existsSync(index)) {
       res.writeHead(200, { "Content-Type": MIME[".html"] });
+      if (req.method === "HEAD") {
+        res.end();
+        return;
+      }
       res.end(fs.readFileSync(index));
       return;
     }
@@ -118,6 +173,10 @@ function serveStatic(req, res, pathname) {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=3600"
   });
+  if (req.method === "HEAD") {
+    res.end();
+    return;
+  }
   res.end(fs.readFileSync(resolved));
 }
 

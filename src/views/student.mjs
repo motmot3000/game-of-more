@@ -79,7 +79,7 @@ function renderPickCard(pupil) {
         class="card-hit"
         type="button"
         data-action="student-pick"
-        data-pupil-id="${pupil.id}"
+        data-pupil-id="${escapeHtml(pupil.id)}"
         aria-label="Open ${escapeHtml(pupil.name)}'s hero"
       ></button>
       <header class="hero-card-head">
