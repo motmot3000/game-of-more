@@ -1,0 +1,24 @@
+www.thomaswunsche.com {
+	import security_headers
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	encode zstd gzip
+
+	# Temporary relay used by the classic hosting during the DNS cutover.
+	handle_path /_game-of-more-site/* {
+		reverse_proxy 127.0.0.1:5180
+	}
+
+	# Kept during the rollback window for the previous API-only relay.
+	handle_path /_game-of-more-api/* {
+		reverse_proxy 127.0.0.1:5180
+	}
+
+	handle {
+		root * /srv/www/www.thomaswunsche.com
+		file_server
+	}
+
+	log {
+		format json
+	}
+}

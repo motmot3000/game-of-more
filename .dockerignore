@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+.playwright-mcp
+node_modules
+data
+server/data
+var
+*.log
